@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 def main():
     load_dotenv()
     # Initialize clients
-    gmail_client = GmailClient(os.environ.get("GMAIL_CREDENTIALS_PATH"))
+    gmail_client = GmailClient()
     gemini_processor = GeminiProcessor(os.environ.get("GEMINI_API_KEY"))
     notion_client = NotionClient(
         os.environ.get("NOTION_API_KEY"), os.environ.get("NOTION_DATABASE_ID")
