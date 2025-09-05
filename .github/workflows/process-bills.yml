@@ -21,11 +21,8 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Create venv
-        run: uv venv bill_env
-
-      - name: Install dependencies
-        run: bill_env/bin/uv sync --active
+      - name: Install dependencies with uv
+        run: uv install
 
       - name: Run bill processing script
         env:
@@ -33,4 +30,4 @@ jobs:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: bill_env/bin/python src/main.py
+        run: ./.venv/bin/python src/main.py
