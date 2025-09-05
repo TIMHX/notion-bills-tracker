@@ -12,28 +12,19 @@ SCOPES = [
 
 
 class GmailClient:
-    def __init__(self, credentials_path):
-        self.credentials_path = credentials_path
+    def __init__(self):
         self.service = self._authenticate_gmail()
 
     def _authenticate_gmail(self):
-        creds = None
-        token_path = "token.pickle"
-
-        if os.path.exists(token_path):
-            with open(token_path, "rb") as token:
-                creds = pickle.load(token)
-
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self.credentials_path, SCOPES
-                )
-                creds = flow.run_local_server(port=0)
-            with open(token_path, "wb") as token:
-                pickle.dump(creds, token)
+        creds = Credentials(
+            None,  # access_token is not needed for initial refresh
+            refresh_token=os.environ.get("GMAIL_REFRESH_TOKEN"),
+            client_id=os.environ.get("GMAIL_CLIENT_ID"),
+            client_secret=os.environ.get("GMAIL_CLIENT_SECRET"),
+            token_uri="https://oauth2.googleapis.com/token",
+            scopes=SCOPES,
+        )
+        creds.refresh(Request())
         return build("gmail", "v1", credentials=creds)
 
     def get_unread_emails(self, sender_filter=None):
@@ -98,7 +89,7 @@ if __name__ == "__main__":
     # and enable the Gmail API.
     # You'll also need to run this script once locally to authenticate
     # and generate the token.pickle file.
-    gmail_client = GmailClient("./credentials.json")
+    gmail_client = GmailClient()
     unread_emails = gmail_client.get_unread_emails()
     for email in unread_emails:
         print(f"Subject: {email['subject']}, Sender: {email['sender']}")
