@@ -29,6 +29,7 @@ class GeminiProcessor:
         JSON Output:
         """
         try:
+            print(f"Sending the following prompt to Gemini:\n{prompt}")
             response = self.model.generate_content(prompt)
             json_output = response.text.strip()
             # Remove markdown code block if present

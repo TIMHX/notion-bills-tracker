@@ -1,5 +1,6 @@
 import os
 import pickle
+import re
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -62,6 +63,8 @@ class GmailClient:
             else:
                 body = self._decode_email_body(payload["body"]["data"])
 
+            body = self._clean_email_body(body)
+
             unread_emails_data.append(
                 {
                     "id": message["id"],
@@ -81,6 +84,20 @@ class GmailClient:
         import base64
 
         return base64.urlsafe_b64decode(data).decode("utf-8")
+
+    def _clean_email_body(self, body: str) -> str:
+        """Cleans the email body by removing signatures, quoted text, and excessive whitespace."""
+        # Remove forwarded message headers
+        body = re.sub(r"---------- Forwarded message ---------.*", "", body, flags=re.DOTALL)
+        # Remove "On <date>, <author> wrote:" lines
+        body = re.sub(r"On.*wrote:", "", body, flags=re.DOTALL)
+        # Remove quoted text (lines starting with '>')
+        body = re.sub(r"(\n>.*)+", "", body)
+        # Remove signatures (lines starting with '--')
+        body = re.sub(r"\n--.*", "", body, flags=re.DOTALL)
+        # Remove excessive newlines
+        body = re.sub(r"\n{3,}", "\n\n", body)
+        return body.strip()
 
 
 if __name__ == "__main__":
