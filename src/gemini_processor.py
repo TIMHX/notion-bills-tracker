@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 class GeminiProcessor:
     def __init__(self, api_key):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-2.5-pro")
+        self.model = genai.GenerativeModel("gemini-2.0-flash-lite")
 
     def extract_bill_info(self, email_body, email_subject=""):
         prompt = f"""
