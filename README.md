@@ -4,10 +4,14 @@ This project automates the process of tracking bills from your Gmail inbox and a
 
 ## Features
 
-- **Gmail Integration**: Fetches unread emails from your Gmail inbox.
-- **Gemini AI Extraction**: Utilizes Google Gemini to intelligently extract bill details (name, due date, amount, currency, biller) from email content.
-- **Notion Database Management**: Adds extracted bill information to a specified Notion database.
-- **Automated Workflow**: Designed to run automatically via GitHub Actions on a schedule, or manually triggered.
+-   **Gmail Integration**: Fetches unread emails from your Gmail inbox, specifically those from "Chase" with the label "大通银行明细".
+-   **Gemini AI Extraction**: Utilizes Google Gemini (model `gemini-2.5-pro`) to intelligently extract bill details:
+    -   `merchant` (支出项目)
+    -   `amount` (支出金额)
+    -   `account_type` (支出类别 - e.g., "支票账户" for checking account or "信用卡" for credit card)
+    -   `date` (覆写日期 - in YYYY-MM-DD format)
+-   **Notion Database Management**: Adds extracted bill information to a specified Notion database with predefined properties.
+-   **Automated Workflow**: Designed to run automatically via GitHub Actions every 6 hours, and can also be triggered manually.
 
 ## Project Structure
 
@@ -74,12 +78,11 @@ uv sync
 2.  Click "New integration".
 3.  Give it a name (e.g., "Bill Tracker Integration") and associate it with your workspace.
 4.  Copy the "Internal Integration Token".
-5.  Create a new Notion database for your bills. It should have the following properties (case-sensitive):
-    -   `Bill Name` (Title)
-    -   `Due Date` (Date)
-    -   `Amount Due` (Number)
-    -   `Currency` (Rich Text)
-    -   `Biller` (Rich Text)
+5.  Create a new Notion database for your bills. It should have the following properties (case-sensitive, using Chinese names as per implementation):
+    -   `支出项目` (Title)
+    -   `覆写日期` (Date)
+    -   `支出金额` (Number)
+    -   `支出类别` (Select - e.g., "信用卡", "支票账户")
 6.  Share your Notion database with the integration you just created.
 7.  Copy the Database ID from the URL of your Notion database. It's the part after `https://www.notion.so/` and before `?v=...`.
 
@@ -111,12 +114,12 @@ To run this project automatically on GitHub Actions, you need to set up reposito
 1.  Go to your GitHub repository settings.
 2.  Navigate to "Secrets and variables" > "Actions".
 3.  Add the following repository secrets:
-    -   `GMAIL_CREDENTIALS_PATH`: The content of your `credentials.json` file. **Copy the entire JSON content directly into the secret value.**
+    -   `GMAIL_CREDENTIALS_PATH`: The **entire JSON content** of your `credentials.json` file.
     -   `NOTION_API_KEY`: Your Notion internal integration token.
     -   `NOTION_DATABASE_ID`: Your Notion database ID.
     -   `GEMINI_API_KEY`: Your Google Gemini API key.
 
-The `process-bills.yml` workflow is configured to run daily at midnight UTC and can also be triggered manually.
+The `process-bills.yml` workflow is configured to run daily every 6 hours UTC (`0 */6 * * *`) and can also be triggered manually via `workflow_dispatch`.
 
 ## License
 
