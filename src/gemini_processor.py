@@ -41,6 +41,14 @@ class GeminiProcessor:
                 print(f"Gemini returned non-JSON response: {json_output}")
                 return {}
 
+            if "amount" in bill_info and isinstance(bill_info["amount"], str):
+                try:
+                    # Remove currency symbols and commas, then convert to float
+                    amount_str = bill_info["amount"].replace("$", "").replace(",", "")
+                    bill_info["amount"] = float(amount_str)
+                except (ValueError, TypeError):
+                    print(f"Could not convert amount to float: {bill_info['amount']}")
+
             return bill_info
         except Exception as e:
             print(f"Error extracting bill info with Gemini: {e}")

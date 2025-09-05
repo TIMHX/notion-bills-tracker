@@ -102,6 +102,14 @@ class GmailClient:
         text = re.sub(r"(\n>.*)+", "", text)
         # Remove signatures (lines starting with '--')
         text = re.sub(r"\n--.*", "", text, flags=re.DOTALL)
+        # Remove irrelevant alert information
+        text = re.sub(
+            r"You are receiving this alert because.*account\.", "", text, flags=re.DOTALL
+        )
+        text = re.sub(r"Review account", "", text)
+        text = re.sub(r"Securely access your accounts with.*chase\.com\.", "", text)
+        # Remove "About this message" section
+        text = re.sub(r"About this message.*", "", text, flags=re.DOTALL)
         # Remove excessive newlines
         text = re.sub(r"\n{3,}", "\n\n", text)
         return text.strip()
