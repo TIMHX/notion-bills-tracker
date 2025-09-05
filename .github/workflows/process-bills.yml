@@ -25,7 +25,7 @@ jobs:
         run: uv venv bill_env
 
       - name: Activate Venv
-        run: activate bill_env
+        run: source bill_env/bin/activate
 
       - name: Install dependencies
         run: uv sync --active
