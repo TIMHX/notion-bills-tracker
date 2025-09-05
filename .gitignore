@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python/
+env/
+venv/
+bill_env/
+*.env
+.env
+
+# Google API
+token.pickle
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+.localized

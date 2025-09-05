@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: chase-bill-tracker
+Version: 0.1.0
+Summary: A tool to track Chase bills.
+Requires-Dist: google-api-python-client
+Requires-Dist: google-auth-httplib2
+Requires-Dist: google-auth-oauthlib
+Requires-Dist: google-generativeai
+Requires-Dist: requests
+Requires-Dist: python-dotenv
