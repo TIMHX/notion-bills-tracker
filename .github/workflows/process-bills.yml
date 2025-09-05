@@ -29,6 +29,6 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           uv venv bill_env
-          activate bill_env
+          source bill_env/bin/activate
           uv sync --active
           python src/main.py
