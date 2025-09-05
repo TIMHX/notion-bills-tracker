@@ -22,15 +22,13 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies with uv
-        run: |
-          uv venv bill_env
-          source .bill_env/bin/activate
-          uv sync --active
-
-      - name: Run bill processing script
         env:
           GMAIL_CREDENTIALS_PATH: ${{ secrets.GMAIL_CREDENTIALS_PATH }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python src/main.py
+        run: |
+          uv venv bill_env
+          activate bill_env
+          uv sync --active
+          python src/main.py
