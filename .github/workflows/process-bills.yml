@@ -22,7 +22,7 @@ jobs:
         run: pip install uv
 
       - name: Create credentials.json
-        run: echo "${{ secrets.GMAIL_CREDENTIALS_JSON }}" > credentials.json
+        run: echo "${{ secrets.GMAIL_CREDENTIALS_JSON }}" | jq . > credentials.json
         shell: bash
 
       - name: Install dependencies with uv
