@@ -22,17 +22,22 @@ jobs:
         run: pip install uv
 
       - name: Create credentials.json
-        run: echo "${{ secrets.GMAIL_CREDENTIALS_JSON }}" | jq . > credentials.json
+        run: |
+          if [ -n "${{ secrets.GMAIL_CREDENTIALS_JSON }}" ]; then
+            echo "${{ secrets.GMAIL_CREDENTIALS_JSON }}" | jq . > credentials.json
+          else
+            echo "{}" > credentials.json # Create an empty JSON object if secret is empty
+          fi
         shell: bash
 
       - name: Install dependencies with uv
         env:
-          GMAIL_CREDENTIALS_PATH: ./credentials.json
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           uv venv bill_env
           source bill_env/bin/activate
+          export GMAIL_CREDENTIALS_PATH=./credentials.json # Move this line here
           uv sync --active
           python src/main.py
