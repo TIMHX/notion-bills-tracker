@@ -5,7 +5,7 @@ This project automates the process of tracking bills from your Gmail inbox and a
 ## Features
 
 -   **Gmail Integration**: Fetches unread emails from your Gmail inbox, specifically those from "Chase" with the label "大通银行明细".
--   **Gemini AI Extraction**: Utilizes Google Gemini (model `gemini-2.5-pro`) to intelligently extract bill details:
+-   **Gemini AI Extraction**: Utilizes Google Gemini (model `gemini-2.0-flash-lite`) to intelligently extract bill details:
     -   `merchant` (支出项目)
     -   `amount` (支出金额)
     -   `account_type` (支出类别 - e.g., "支票账户" for checking account or "信用卡" for credit card)
@@ -55,16 +55,40 @@ source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
 uv sync
 ```
 
-### 3. Google Cloud Project & Gmail API Credentials
+### 3. Google Cloud & Gmail API Setup
 
-1.  Go to the [Google Cloud Console](https://console.cloud.google.com/).
-2.  Create a new project or select an existing one.
-3.  Enable the **Gmail API**.
-4.  Go to "APIs & Services" > "Credentials".
-5.  Click "Create Credentials" > "OAuth client ID".
-6.  Choose "Desktop app" as the application type and create it.
-7.  Download the `credentials.json` file.
-8.  Place this file in the root of your `chase-bill-tracker` directory. **Do NOT commit this file to Git.**
+To use the Gmail API, you'll need to set up OAuth 2.0 credentials. This project uses a refresh token for non-interactive authentication, which is ideal for automated scripts.
+
+1.  **Create a Google Cloud Project**:
+    *   Go to the [Google Cloud Console](https://console.cloud.google.com/).
+    *   Create a new project or select an existing one.
+    *   Enable the **Gmail API** for your project.
+
+2.  **Configure OAuth Consent Screen**:
+    *   Go to "APIs & Services" > "OAuth consent screen".
+    *   Choose "External" and create the consent screen.
+    *   Provide an app name, user support email, and developer contact information.
+    *   In the "Scopes" section, add the following scopes:
+        *   `https://www.googleapis.com/auth/gmail.readonly`
+        *   `https://www.googleapis.com/auth/gmail.modify`
+    *   In the "Test users" section, add the Google account you'll be using to access Gmail.
+
+3.  **Create OAuth 2.0 Credentials**:
+    *   Go to "APIs & Services" > "Credentials".
+    *   Click "Create Credentials" > "OAuth client ID".
+    *   Select "Web application" as the application type.
+    *   Under "Authorized redirect URIs", add `https://developers.google.com/oauthplayground`.
+    *   Click "Create". You will get a **Client ID** and **Client Secret**.
+
+4.  **Generate a Refresh Token**:
+    *   Go to the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground).
+    *   In the top right corner, click the gear icon ("OAuth 2.0 configuration").
+    *   Check "Use your own OAuth credentials" and enter your **Client ID** and **Client Secret**.
+    *   In the "Step 1: Select & authorize APIs" section, paste the following scopes and click "Authorize APIs":
+        `https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify`
+    *   Follow the prompts to grant access to your Google account.
+    *   In "Step 2: Exchange authorization code for tokens", click "Exchange authorization code for tokens".
+    *   You will receive a **Refresh token**. Copy this value.
 
 ### 4. Google Gemini API Key
 
@@ -91,13 +115,15 @@ uv sync
 Create a `.env` file in the root of your project with the following variables:
 
 ```
-GMAIL_CREDENTIALS_PATH=./credentials.json
+GMAIL_CLIENT_ID=YOUR_GMAIL_CLIENT_ID
+GMAIL_CLIENT_SECRET=YOUR_GMAIL_CLIENT_SECRET
+GMAIL_REFRESH_TOKEN=YOUR_GMAIL_REFRESH_TOKEN
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 NOTION_API_KEY=YOUR_NOTION_API_KEY
 NOTION_DATABASE_ID=YOUR_NOTION_DATABASE_ID
 ```
 
-Replace `YOUR_GEMINI_API_KEY`, `YOUR_NOTION_API_KEY`, and `YOUR_NOTION_DATABASE_ID` with your actual keys and IDs.
+Replace the placeholder values with your actual credentials.
 
 ## Running Locally
 
@@ -105,7 +131,7 @@ Replace `YOUR_GEMINI_API_KEY`, `YOUR_NOTION_API_KEY`, and `YOUR_NOTION_DATABASE_
 python src/main.py
 ```
 
-The first time you run `src/main.py`, a browser window will open for you to authenticate with your Google account for Gmail access. After successful authentication, a `token.pickle` file will be created to store your credentials for future runs.
+The script uses the refresh token to authenticate with the Gmail API, so no browser interaction is needed after the initial setup.
 
 ## GitHub Actions Setup
 
@@ -114,7 +140,9 @@ To run this project automatically on GitHub Actions, you need to set up reposito
 1.  Go to your GitHub repository settings.
 2.  Navigate to "Secrets and variables" > "Actions".
 3.  Add the following repository secrets:
-    -   `GMAIL_CREDENTIALS_PATH`: The **entire JSON content** of your `credentials.json` file.
+    -   `GMAIL_CLIENT_ID`: Your Google Cloud OAuth Client ID.
+    -   `GMAIL_CLIENT_SECRET`: Your Google Cloud OAuth Client Secret.
+    -   `GMAIL_REFRESH_TOKEN`: The refresh token you generated.
     -   `NOTION_API_KEY`: Your Notion internal integration token.
     -   `NOTION_DATABASE_ID`: Your Notion database ID.
     -   `GEMINI_API_KEY`: Your Google Gemini API key.
