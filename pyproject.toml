@@ -9,6 +9,8 @@ dependencies = [
     "google-generativeai",
     "requests",
     "python-dotenv",
+    "beautifulsoup4",
+    "lxml",
 ]
 
 [build-system]

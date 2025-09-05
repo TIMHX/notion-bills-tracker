@@ -1,6 +1,7 @@
 import os
 import pickle
 import re
+from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -57,6 +58,9 @@ class GmailClient:
             body = ""
             if "parts" in payload:
                 for part in payload["parts"]:
+                    if part["mimeType"] == "text/html":
+                        body = self._decode_email_body(part["body"]["data"])
+                        break
                     if part["mimeType"] == "text/plain":
                         body = self._decode_email_body(part["body"]["data"])
                         break
@@ -87,17 +91,20 @@ class GmailClient:
 
     def _clean_email_body(self, body: str) -> str:
         """Cleans the email body by removing signatures, quoted text, and excessive whitespace."""
+        soup = BeautifulSoup(body, "lxml")
+        # Get text from the body
+        text = soup.get_text()
         # Remove forwarded message headers
-        body = re.sub(r"---------- Forwarded message ---------.*", "", body, flags=re.DOTALL)
+        text = re.sub(r"---------- Forwarded message ---------.*", "", text, flags=re.DOTALL)
         # Remove "On <date>, <author> wrote:" lines
-        body = re.sub(r"On.*wrote:", "", body, flags=re.DOTALL)
+        text = re.sub(r"On.*wrote:", "", text, flags=re.DOTALL)
         # Remove quoted text (lines starting with '>')
-        body = re.sub(r"(\n>.*)+", "", body)
+        text = re.sub(r"(\n>.*)+", "", text)
         # Remove signatures (lines starting with '--')
-        body = re.sub(r"\n--.*", "", body, flags=re.DOTALL)
+        text = re.sub(r"\n--.*", "", text, flags=re.DOTALL)
         # Remove excessive newlines
-        body = re.sub(r"\n{3,}", "\n\n", body)
-        return body.strip()
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        return text.strip()
 
 
 if __name__ == "__main__":
