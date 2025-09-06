@@ -1,18 +1,17 @@
 import os
+from datetime import datetime
 from gmail_client import GmailClient
 from gemini_processor import GeminiProcessor
 from notion_client import NotionClient
 from dotenv import load_dotenv
-from logger_utils import setup_logger  # Added import
+from logger_utils import setup_logger
 
 
 def main():
     load_dotenv()
-    # Get LOG_LEVEL from env, default to WARNING
     log_level_str = os.getenv("LOG_LEVEL", "WARNING").upper()
-    logger = setup_logger(__name__, log_level_str)  # Setup main logger
+    logger = setup_logger(__name__, log_level_str)
 
-    # Initialize clients, passing the log_level_str
     gmail_client = GmailClient(log_level_str=log_level_str)
     gemini_processor = GeminiProcessor(
         os.environ.get("GEMINI_API_KEY"), log_level_str=log_level_str
@@ -24,22 +23,52 @@ def main():
         log_level_str=log_level_str,
     )
 
-    # 1. Fetch unread emails from Chase
-    unread_emails = gmail_client.get_unread_emails(sender_filter="Chase")
-    logger.info(f"Found {len(unread_emails)} unread emails.")
+    workflow_name = "Process Bills Workflow"
+    workflow_status = "Success"
+    workflow_notes = "Successfully processed all bills."
 
-    for email in unread_emails:
-        # 2. Extract bill information using Gemini
-        bill_info = gemini_processor.extract_bill_info(email["body"])
-        if bill_info:
-            logger.info(f"Extracted bill: {bill_info}")
-            # 3. Add to Notion
-            notion_client.add_bill_to_notion(bill_info)
-            # 4. Mark email as read
-            gmail_client.mark_email_as_read(email["id"])
-            logger.info(f"Processed email {email['id']} and added bill to Notion.")
-        else:
-            logger.info(f"No bill information found in email {email['id']}.")
+    # Get GitHub Actions environment variables
+    github_repository = os.getenv("GITHUB_REPOSITORY")
+    github_run_id = os.getenv("GITHUB_RUN_ID")
+    github_sha = os.getenv("GITHUB_SHA")
+    github_actor = os.getenv("GITHUB_ACTOR")
+
+    workflow_url = (
+        f"https://github.com/{github_repository}/actions/runs/{github_run_id}"
+        if github_repository and github_run_id
+        else None
+    )
+
+    try:
+        unread_emails = gmail_client.get_unread_emails(sender_filter="Chase")
+        logger.info(f"Found {len(unread_emails)} unread emails.")
+
+        for email in unread_emails:
+            bill_info = gemini_processor.extract_bill_info(email["body"])
+            if bill_info:
+                logger.info(f"Extracted bill: {bill_info}")
+                notion_client.add_bill_to_notion(bill_info)
+                gmail_client.mark_email_as_read(email["id"])
+                logger.info(f"Processed email {email['id']} and added bill to Notion.")
+            else:
+                logger.info(f"No bill information found in email {email['id']}.")
+
+    except Exception as e:
+        logger.error(f"Workflow failed: {e}")
+        workflow_status = "Failure"
+        workflow_notes = f"Workflow failed with error: {e}"
+    finally:
+        notion_client.log_workflow_run(
+            workflow_name=workflow_name,
+            status=workflow_status,
+            commit_id=github_sha,
+            workflow_url=workflow_url,
+            repository=github_repository,
+            date=datetime.now().isoformat(),
+            notes=workflow_notes,
+            triggered_by=github_actor,
+        )
+        logger.info(f"Workflow run logged to Notion with status: {workflow_status}")
 
 
 if __name__ == "__main__":
