@@ -1,6 +1,6 @@
 # Notion Bill Tracker
 
-This project automates the process of tracking bills from your Gmail inbox and adding them to a Notion database. It uses the Google Gemini API to extract bill information from emails and the Notion API to manage your bill tracking.
+This project automates the process of tracking bills from your Gmail inbox and adding them to a Notion database. It uses the Google Gemini API to extract bill information from emails and the Notion API to manage your bill tracking. Notion MCP is recommanded to use during dev, which provides a strong support on database fetching & figuring out api specifications.
 
 ## Features
 
