@@ -1,4 +1,4 @@
-# Chase Bill Tracker
+# Notion Bill Tracker
 
 This project automates the process of tracking bills from your Gmail inbox and adding them to a Notion database. It uses the Google Gemini API to extract bill information from emails and the Notion API to manage your bill tracking.
 
@@ -18,7 +18,7 @@ This project automates the process of tracking bills from your Gmail inbox and a
 ## Project Structure
 
 ```
-chase-bill-tracker/
+notion-bills-tracker/
 ├── .github/
 │   └── workflows/
 │       └── process-bills.yml
@@ -41,8 +41,8 @@ chase-bill-tracker/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/chase-bill-tracker.git
-cd chase-bill-tracker
+git clone https://github.com/your-username/notion-bills-tracker.git
+cd notion-bills-tracker
 ```
 
 ### 2. Set up a Python Virtual Environment with uv

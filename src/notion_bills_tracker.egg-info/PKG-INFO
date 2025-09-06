@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
-Name: chase-bill-tracker
+Name: notion-bills-tracker
 Version: 0.1.0
-Summary: A tool to track Chase bills.
+Summary: A tool to track personal bills and push to notion.
 Requires-Dist: google-api-python-client
 Requires-Dist: google-auth-httplib2
 Requires-Dist: google-auth-oauthlib

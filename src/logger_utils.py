@@ -1,5 +1,4 @@
 import logging
-import os
 
 
 def setup_logger(name: str, log_level_str: str = "WARNING") -> logging.Logger:
