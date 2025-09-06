@@ -21,13 +21,14 @@ jobs:
       - name: Install uv
         run: pip install uv
 
-      - name: Install dependencies with uv
+      - name: Install dependencies with uv and execute script
         env:
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
           GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          NOTION_WORKFLOW_DATABASE_ID: ${{ secrets.NOTION_WORKFLOW_DATABASE_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'WARNING' }} # Added LOG_LEVEL environment variable
         run: |

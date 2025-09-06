@@ -13,13 +13,34 @@ def main():
     logger = setup_logger(__name__, log_level_str)
 
     gmail_client = GmailClient(log_level_str=log_level_str)
-    gemini_processor = GeminiProcessor(
-        os.environ.get("GEMINI_API_KEY"), log_level_str=log_level_str
-    )
+    gemini_api_key = os.environ.get("GEMINI_API_KEY")
+    notion_api_key = os.environ.get("NOTION_API_KEY")
+    notion_database_id = os.environ.get("NOTION_DATABASE_ID")
+    notion_workflow_database_id = os.environ.get("NOTION_WORKFLOW_DATABASE_ID")
+
+    if not all(
+        [
+            gemini_api_key,
+            notion_api_key,
+            notion_database_id,
+            notion_workflow_database_id,
+        ]
+    ):
+        logger.error(
+            "One or more environment variables (GEMINI_API_KEY, NOTION_API_KEY, NOTION_DATABASE_ID, NOTION_WORKFLOW_DATABASE_ID) are not set."
+        )
+        # Exit or raise an exception as appropriate for your application
+        # For now, we'll set workflow_status to Failure and log it.
+        workflow_status = "Failure"
+        workflow_notes = "Missing environment variables."
+        # We can't proceed without these, so we'll return here.
+        return
+
+    gemini_processor = GeminiProcessor(gemini_api_key, log_level_str=log_level_str)
     notion_client = NotionClient(
-        os.environ.get("NOTION_API_KEY"),
-        os.environ.get("NOTION_DATABASE_ID"),
-        os.environ.get("NOTION_WORKFLOW_DATABASE_ID"),
+        notion_api_key,
+        notion_database_id,
+        notion_workflow_database_id,
         log_level_str=log_level_str,
     )
 
