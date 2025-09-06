@@ -12,6 +12,8 @@ This project automates the process of tracking bills from your Gmail inbox and a
     -   `date` (覆写日期 - in YYYY-MM-DD format)
 -   **Notion Database Management**: Adds extracted bill information to a specified Notion database with predefined properties.
 -   **Automated Workflow**: Designed to run automatically via GitHub Actions every 6 hours, and can also be triggered manually.
+-   **Configurable Logging**: Utilizes `logger_utils.py` for structured logging with configurable levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) via environment variables.
+-   **Workflow Tracking**: Tracks the status of each workflow run in a dedicated Notion database, providing visibility into automation health.
 
 ## Project Structure
 
@@ -25,7 +27,9 @@ chase-bill-tracker/
 │   ├── main.py
 │   ├── gmail_client.py
 │   ├── gemini_processor.py
-│   └── notion_client.py
+│   ├── notion_client.py
+│   ├── logger_utils.py
+│   └── workflow_tracker.py
 ├── .gitignore
 ├── pyproject.toml
 ├── uv.lock
@@ -121,6 +125,8 @@ GMAIL_REFRESH_TOKEN=YOUR_GMAIL_REFRESH_TOKEN
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 NOTION_API_KEY=YOUR_NOTION_API_KEY
 NOTION_DATABASE_ID=YOUR_NOTION_DATABASE_ID
+NOTION_WORKFLOW_DATABASE_ID=YOUR_NOTION_WORKFLOW_DATABASE_ID
+LOG_LEVEL=WARNING # Optional: DEBUG, INFO, WARNING, ERROR, CRITICAL
 ```
 
 Replace the placeholder values with your actual credentials.
@@ -145,7 +151,9 @@ To run this project automatically on GitHub Actions, you need to set up reposito
     -   `GMAIL_REFRESH_TOKEN`: The refresh token you generated.
     -   `NOTION_API_KEY`: Your Notion internal integration token.
     -   `NOTION_DATABASE_ID`: Your Notion database ID.
+    -   `NOTION_WORKFLOW_DATABASE_ID`: Your Notion database ID for workflow tracking.
     -   `GEMINI_API_KEY`: Your Google Gemini API key.
+    -   `LOG_LEVEL`: (Optional) The logging level for the application (e.g., `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Defaults to `WARNING`.
 
 The `process-bills.yml` workflow is configured to run daily every 6 hours UTC (`0 */6 * * *`) and can also be triggered manually via `workflow_dispatch`.
 
