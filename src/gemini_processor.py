@@ -3,7 +3,7 @@ import json
 import os
 import logging  # Added import
 from dotenv import load_dotenv
-from src.logger_utils import setup_logger  # Added import
+from logger_utils import setup_logger  # Added import
 
 
 class GeminiProcessor:
