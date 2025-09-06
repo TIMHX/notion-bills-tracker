@@ -29,6 +29,7 @@ jobs:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'WARNING' }} # Added LOG_LEVEL environment variable
         run: |
           uv venv bill_env
           source bill_env/bin/activate

@@ -1,13 +1,18 @@
 import google.generativeai as genai
 import json
 import os
+import logging  # Added import
 from dotenv import load_dotenv
+from src.logger_utils import setup_logger  # Added import
 
 
 class GeminiProcessor:
-    def __init__(self, api_key):
+    # Modified __init__ to accept log_level_str and setup logger
+    def __init__(self, api_key, log_level_str: str = "WARNING"):
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel("gemini-2.0-flash-lite")
+
+        self.logger = setup_logger(__name__, log_level_str)  # Use the universal logger
 
     def extract_bill_info(self, email_body, email_subject=""):
         prompt = f"""
@@ -29,7 +34,8 @@ class GeminiProcessor:
         JSON Output:
         """
         try:
-            print(f"Sending the following prompt to Gemini:\n{prompt}")
+            # Replaced print with logger.debug
+            self.logger.debug(f"Sending the following prompt to Gemini:\n{prompt}")
             response = self.model.generate_content(prompt)
             json_output = response.text.strip()
             # Remove markdown code block if present
@@ -38,7 +44,8 @@ class GeminiProcessor:
             try:
                 bill_info = json.loads(json_output)
             except json.JSONDecodeError:
-                print(f"Gemini returned non-JSON response: {json_output}")
+                # Replaced print with logger.warning
+                self.logger.warning(f"Gemini returned non-JSON response: {json_output}")
                 return {}
 
             if "amount" in bill_info and isinstance(bill_info["amount"], str):
@@ -47,21 +54,30 @@ class GeminiProcessor:
                     amount_str = bill_info["amount"].replace("$", "").replace(",", "")
                     bill_info["amount"] = float(amount_str)
                 except (ValueError, TypeError):
-                    print(f"Could not convert amount to float: {bill_info['amount']}")
+                    # Replaced print with logger.warning
+                    self.logger.warning(
+                        f"Could not convert amount to float: {bill_info['amount']}"
+                    )
 
             return bill_info
         except Exception as e:
-            print(f"Error extracting bill info with Gemini: {e}")
+            # Replaced print with logger.error
+            self.logger.error(f"Error extracting bill info with Gemini: {e}")
             return {}
 
 
 if __name__ == "__main__":
     load_dotenv()
     gemini_api_key = os.getenv("GEMINI_API_KEY")
+    # Get LOG_LEVEL from env, default to WARNING
+    log_level_str = os.getenv("LOG_LEVEL", "WARNING").upper()
+
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY not found in .env file")
 
-    gemini_processor = GeminiProcessor(gemini_api_key)
+    # Instantiate GeminiProcessor with the determined log level
+    gemini_processor = GeminiProcessor(gemini_api_key, log_level_str=log_level_str)
+
     # Updated sample email body to include keywords for account type detection
     sample_email_body = """
     You sent $1,635.00 to Testing VILLAGE from account ending in (...3925)
@@ -72,6 +88,7 @@ if __name__ == "__main__":
     Amount 	$1,635.00
     """
     bill_details = gemini_processor.extract_bill_info(sample_email_body)
-    # Ensure proper display of Chinese characters
-    print(json.dumps(bill_details, ensure_ascii=False, indent=2))
-    pass
+    # Use logger.info for the final output, controlled by the log_level
+    gemini_processor.logger.info(
+        f"Extracted bill details: {json.dumps(bill_details, ensure_ascii=False, indent=2)}"
+    )

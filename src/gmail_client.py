@@ -1,11 +1,13 @@
 import os
 import pickle
 import re
+import logging  # Added import
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
+from src.logger_utils import setup_logger  # Added import
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
@@ -14,7 +16,9 @@ SCOPES = [
 
 
 class GmailClient:
-    def __init__(self):
+    # Modified __init__ to accept log_level_str and setup logger
+    def __init__(self, log_level_str: str = "WARNING"):
+        self.logger = setup_logger(__name__, log_level_str)  # Use the universal logger
         self.service = self._authenticate_gmail()
 
     def _authenticate_gmail(self):
@@ -95,7 +99,9 @@ class GmailClient:
         # Get text from the body
         text = soup.get_text()
         # Remove forwarded message headers
-        text = re.sub(r"---------- Forwarded message ---------.*", "", text, flags=re.DOTALL)
+        text = re.sub(
+            r"---------- Forwarded message ---------.*", "", text, flags=re.DOTALL
+        )
         # Remove "On <date>, <author> wrote:" lines
         text = re.sub(r"On.*wrote:", "", text, flags=re.DOTALL)
         # Remove quoted text (lines starting with '>')
@@ -104,7 +110,10 @@ class GmailClient:
         text = re.sub(r"\n--.*", "", text, flags=re.DOTALL)
         # Remove irrelevant alert information
         text = re.sub(
-            r"You are receiving this alert because.*account\.", "", text, flags=re.DOTALL
+            r"You are receiving this alert because.*account\.",
+            "",
+            text,
+            flags=re.DOTALL,
         )
         text = re.sub(r"Review account", "", text)
         text = re.sub(r"Securely access your accounts with.*chase\.com\.", "", text)
@@ -116,16 +125,22 @@ class GmailClient:
 
 
 if __name__ == "__main__":
+    # Get LOG_LEVEL from env, default to WARNING
+    log_level_str = os.getenv("LOG_LEVEL", "WARNING").upper()
+
     # Example usage (replace with your credentials.json path)
     # Ensure you have a credentials.json file from Google Cloud Platform
     # and enable the Gmail API.
     # You'll also need to run this script once locally to authenticate
     # and generate the token.pickle file.
-    gmail_client = GmailClient()
+    gmail_client = GmailClient(log_level_str=log_level_str)
     unread_emails = gmail_client.get_unread_emails()
     for email in unread_emails:
-        print(f"Subject: {email['subject']}, Sender: {email['sender']}")
-        print(f"Body: {email['body'][:200]}...")  # Print first 200 chars of body
+        gmail_client.logger.info(
+            f"Subject: {email['subject']}, Sender: {email['sender']}"
+        )
+        gmail_client.logger.info(
+            f"Body: {email['body'][:200]}..."
+        )  # Print first 200 chars of body
         gmail_client.mark_email_as_read(email["id"])
         break
-    pass
