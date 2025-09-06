@@ -20,6 +20,7 @@ def main():
     notion_client = NotionClient(
         os.environ.get("NOTION_API_KEY"),
         os.environ.get("NOTION_DATABASE_ID"),
+        os.environ.get("NOTION_WORKFLOW_DATABASE_ID"),
         log_level_str=log_level_str,
     )
 
