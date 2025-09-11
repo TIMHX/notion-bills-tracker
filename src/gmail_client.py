@@ -118,6 +118,12 @@ class GmailClient:
         text = re.sub(r"About this message.*", "", text, flags=re.DOTALL)
         # Remove excessive newlines
         text = re.sub(r"\n{3,}", "\n\n", text)
+
+        # remove for everyday email
+        text = re.sub(r"Item*", "", text, flags=re.DOTALL)
+        text = re.sub(r"Paid with*", "", text, flags=re.DOTALL)
+        text = re.sub(r"Tax details*", "", text, flags=re.DOTALL)
+        text = re.sub(r"Contact*", "", text, flags=re.DOTALL)
         return text.strip()
 
 
