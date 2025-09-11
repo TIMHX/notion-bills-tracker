@@ -61,7 +61,7 @@ def main():
     )
 
     try:
-        unread_emails = gmail_client.get_unread_emails(sender_filter="Chase")
+        unread_emails = gmail_client.get_unread_emails(sender_filter=["Chase", "everyday"])
         logger.info(f"Found {len(unread_emails)} unread emails.")
 
         for email in unread_emails:
