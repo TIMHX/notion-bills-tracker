@@ -30,10 +30,18 @@ class GmailClient:
         creds.refresh(Request())
         return build("gmail", "v1", credentials=creds)
 
-    def get_unread_emails(self, sender_filter=None):
+    def get_unread_emails(self, sender_filter: str | list[str] | None = None):
         query = "is:unread label:大通银行明细"
         if sender_filter:
-            query += f" from:{sender_filter}"
+            if isinstance(sender_filter, list):
+                if not sender_filter:  # empty list
+                    pass  # skip filter
+                else:
+                    sender_query = " OR ".join(f"from:{s}" for s in sender_filter)
+                    query += f" ({sender_query})"
+            else:
+                if sender_filter.strip():  # non-empty string
+                    query += f" from:{sender_filter}"
         results = self.service.users().messages().list(userId="me", q=query).execute()
         messages = results.get("messages", [])
         unread_emails_data = []
