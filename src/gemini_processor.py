@@ -15,11 +15,11 @@ class GeminiProcessor:
 
     def extract_bill_info(self, email_body, email_subject=""):
         prompt = f"""
-        Analyze the following email body, specifically looking for Chase bill information.
+        Analyze the following email body, specifically looking for bill information.
         Look for details like:
         - amount (numeric value)
-        - merchant (e.g., "BARCLAY VILLAGE", "10162 CAVA LAWRENCEV")
-        - account_type (determine if it's "支票账户" for checking account or "信用卡" for credit card based on keywords like "account ending in" for checking or "transaction with" for credit card)
+        - merchant (e.g., "BARCLAY VILLAGE", "10162 CAVA LAWRENCEV", "PPK Café")
+        - account_type (determine if it's "支票账户" for checking account or "信用卡" for credit card or "餐饮" for diner based on keywords like "account ending in" for checking or "transaction with" for credit card or "Everyday app" for diner)
         - date (e.g. transform "Sep 3, 2025 at 6:19 PM ET" into "2025-09-03")
 
         If you find the information, return it as a JSON object.
