@@ -31,7 +31,7 @@ def main():
         )
         # Exit or raise an exception as appropriate for your application
         # For now, we'll set workflow_status to Failure and log it.
-        workflow_status = "Failure"
+        workflow_status = "Failed"
         workflow_notes = "Missing environment variables."
         # We can't proceed without these, so we'll return here.
         return
@@ -65,7 +65,9 @@ def main():
         logger.info(f"Found {len(unread_emails)} unread emails.")
 
         for email in unread_emails:
-            bill_info = gemini_processor.extract_bill_info(email["body"])
+            bill_info = gemini_processor.extract_bill_info(
+                email_body=email["body"], email_subject=email["subject"]
+            )
             if bill_info:
                 logger.info(f"Extracted bill: {bill_info}")
                 notion_client.add_bill_to_notion(bill_info)
@@ -76,7 +78,7 @@ def main():
 
     except Exception as e:
         logger.error(f"Workflow failed: {e}")
-        workflow_status = "Failure"
+        workflow_status = "Failed"
         workflow_notes = f"Workflow failed with error: {e}"
     finally:
         notion_client.log_workflow_run(

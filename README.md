@@ -5,11 +5,11 @@ This project automates the process of tracking bills from your Gmail inbox and a
 ## Features
 
 -   **Gmail Integration**: Fetches unread emails from your Gmail inbox, specifically those from "Chase" with the label "大通银行明细".
--   **Gemini AI Extraction**: Utilizes Google Gemini (model `gemini-2.0-flash-lite`) to intelligently extract bill details:
-    -   `merchant` (支出项目)
-    -   `amount` (支出金额)
-    -   `account_type` (支出类别 - e.g., "支票账户" for checking account or "信用卡" for credit card)
-    -   `date` (覆写日期 - in YYYY-MM-DD format)
+-   **Gemini AI Extraction**: Utilizes Google Gemini (`gemini-1.5-flash`) via the `dspy` framework with `ChainOfThought` to intelligently extract bill details into a structured `Pydantic` model:
+    -   `merchant`: The merchant's name.
+    -   `amount`: The bill amount.
+    -   `account_type`: The type of account (e.g., "支票账户", "信用卡").
+    -   `date`: The transaction date in `YYYY-MM-DD` format.
 -   **Notion Database Management**: Adds extracted bill information to a specified Notion database with predefined properties.
 -   **Automated Workflow**: Designed to run automatically via GitHub Actions every 6 hours, and can also be triggered manually.
 -   **Configurable Logging**: Utilizes `logger_utils.py` for structured logging with configurable levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) via environment variables.
