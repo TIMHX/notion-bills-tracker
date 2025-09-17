@@ -27,21 +27,36 @@ class BillInfo(BaseModel):
 
 # Define the signature for bill information extraction using the Pydantic model.
 class BillInfoSignature(dspy.Signature):
-    """Analyze the email body to extract bill information and return a structured object."""
+    """
+    Defines the input and output fields for the AI model, creating a structured
+    and enforceable schema. This programmatic approach to prompting is a core
+    benefit of DSPy, replacing manually crafted and brittle prompt strings.
+    """
 
     email_subject: str = dspy.InputField(desc="The subject of an email.")
     email_body: str = dspy.InputField(desc="The body of an email.")
-    bill_info: BillInfo = dspy.OutputField(desc="Structured bill information.")
+    bill_info: BillInfo = dspy.OutputField(
+        desc="Structured bill information based on the Pydantic model."
+    )
 
 
 # Define the DSPy module for bill extraction using ChainOfThought.
 class BillExtractor(dspy.Module):
+    """
+    A DSPy Module encapsulates the prompting strategy. It defines how different
+    components (like signatures and optimizers) are composed to solve a task.
+    This modularity makes the AI pipeline easier to manage, test, and optimize.
+    """
+
     def __init__(self):
         super().__init__()
-        # Use ChainOfThought to encourage reasoning before producing the final structured output.
+        # ChainOfThought is a DSPy component that explicitly asks the language model
+        # to "think step-by-step" before providing the final answer. This improves
+        # reasoning and leads to more accurate and reliable structured data extraction.
         self.extractor = dspy.ChainOfThought(BillInfoSignature)
 
     def forward(self, email_subject, email_body):
+        # The forward method defines the execution logic of the module.
         prediction = self.extractor(email_subject=email_subject, email_body=email_body)
         return prediction
 

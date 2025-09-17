@@ -5,7 +5,8 @@ This project automates the process of tracking bills from your Gmail inbox and a
 ## Features
 
 -   **Gmail Integration**: Fetches unread emails from your Gmail inbox, specifically those from "Chase" with the label "大通银行明细".
--   **Gemini AI Extraction**: Utilizes Google Gemini (`gemini-1.5-flash`) via the `dspy` framework with `ChainOfThought` to intelligently extract bill details into a structured `Pydantic` model:
+-   **Advanced AI Extraction with DSPy**: Leverages the `dspy` framework to programmatically build reliable AI pipelines. Instead of crafting fragile, monolithic prompts, `dspy` allows for a structured, modular, and optimizable approach to prompting language models like Google Gemini (`gemini-1.5-flash`).
+-   **Structured & Reliable Output**: Uses `dspy.Signature` to define a clear data schema (`Pydantic` model) for the expected output. `dspy.ChainOfThought` is employed to guide the model's reasoning process, significantly improving the accuracy and reliability of extracting bill details:
     -   `merchant`: The merchant's name.
     -   `amount`: The bill amount.
     -   `account_type`: The type of account (e.g., "支票账户", "信用卡").
