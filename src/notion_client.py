@@ -26,12 +26,12 @@ class NotionClient:
 
         properties = {
             "支出项目": {
-                "title": [{"text": {"content": bill_info.get("merchant", "Unknown")}}]
+                "title": [{"text": {"content": bill_info.merchant or "Unknown"}}]
             },
-            "支出金额": {"number": bill_info.get("amount", 0.0)},
-            "支出类别": {"select": {"name": bill_info.get("account_type", "信用卡")}},
+            "支出金额": {"number": bill_info.amount or 0.0},
+            "支出类别": {"select": {"name": bill_info.account_type or "信用卡"}},
             "覆写日期": {
-                "date": {"start": bill_info.get("date", "2024-01-01")}
+                "date": {"start": bill_info.date or "2024-01-01"}
             },  # Default date if not found
         }
 
@@ -158,7 +158,7 @@ if __name__ == "__main__":
     bill_details = gemini_processor.extract_bill_info(sample_email_body)
     # Use logger.info for the final output, controlled by the log_level
     notion_client.logger.info(
-        f"Extracted Bill Details: {json.dumps(bill_details, ensure_ascii=False, indent=2)}"
+        f"Extracted Bill Details: {json.dumps(bill_details.model_dump(), ensure_ascii=False, indent=2)}"
     )
 
     if bill_details:
