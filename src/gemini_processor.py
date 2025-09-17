@@ -51,7 +51,7 @@ class GeminiProcessor:
         self.logger = setup_logger(__name__, log_level_str)
         try:
             # Configure DSPy with the Gemini model and JSON adapter for Pydantic.
-            gemini_lm = dspy.Google(
+            gemini_lm = dspy.Gemini(
                 model="gemini-1.5-flash", api_key=api_key, max_output_tokens=2048
             )
             dspy.settings.configure(lm=gemini_lm, adapter=dspy.JSONAdapter)
