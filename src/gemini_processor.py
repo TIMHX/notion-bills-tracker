@@ -1,83 +1,109 @@
-import google.generativeai as genai
+import dspy
 import json
 import os
 from dotenv import load_dotenv
-from logger_utils import setup_logger  # Added import
+from logger_utils import setup_logger
+from pydantic import BaseModel, Field
+from typing import Optional
+
+
+# Define a Pydantic model for structured bill information.
+class BillInfo(BaseModel):
+    """A structured representation of bill information."""
+
+    merchant: Optional[str] = Field(
+        default=None, description="The merchant's name (e.g., 'BARCLAY VILLAGE')."
+    )
+    amount: Optional[float] = Field(
+        default=None, description="The bill amount as a numeric value."
+    )
+    account_type: Optional[str] = Field(
+        default=None, description="The account type ('支票账户', '信用卡', '餐饮')."
+    )
+    date: Optional[str] = Field(
+        default=None, description="The date of the transaction in 'YYYY-MM-DD' format."
+    )
+
+
+# Define the signature for bill information extraction using the Pydantic model.
+class BillInfoSignature(dspy.Signature):
+    """Analyze the email body to extract bill information and return a structured object."""
+
+    email_subject: str = dspy.InputField(desc="The subject of an email.")
+    email_body: str = dspy.InputField(desc="The body of an email.")
+    bill_info: BillInfo = dspy.OutputField(desc="Structured bill information.")
+
+
+# Define the DSPy module for bill extraction using ChainOfThought.
+class BillExtractor(dspy.Module):
+    def __init__(self):
+        super().__init__()
+        # Use ChainOfThought to encourage reasoning before producing the final structured output.
+        self.extractor = dspy.ChainOfThought(BillInfoSignature)
+
+    def forward(self, email_subject, email_body):
+        prediction = self.extractor(email_subject=email_subject, email_body=email_body)
+        return prediction
 
 
 class GeminiProcessor:
-    # Modified __init__ to accept log_level_str and setup logger
     def __init__(self, api_key, log_level_str: str = "WARNING"):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-2.0-flash-lite")
+        self.logger = setup_logger(__name__, log_level_str)
+        try:
+            # Configure DSPy with the Gemini model and JSON adapter for Pydantic.
+            gemini_lm = dspy.Google(
+                model="gemini-1.5-flash", api_key=api_key, max_output_tokens=2048
+            )
+            dspy.settings.configure(lm=gemini_lm, adapter=dspy.JSONAdapter)
+            self.bill_extractor = BillExtractor()
+            self.logger.info("DSPy configured successfully with Gemini model.")
+        except Exception as e:
+            self.logger.error(f"Failed to configure DSPy with Gemini: {e}")
+            raise
 
-        self.logger = setup_logger(__name__, log_level_str)  # Use the universal logger
+    def extract_bill_info(
+        self, email_body: str, email_subject: str = ""
+    ) -> Optional[BillInfo]:
+        """
+        Extracts bill information from an email body using a DSPy module.
 
-    def extract_bill_info(self, email_body, email_subject=""):
-        prompt = f"""
-        Analyze the following email body, specifically looking for bill information.
-        Look for details like:
-        - amount (numeric value)
-        - merchant (e.g., "BARCLAY VILLAGE", "10162 CAVA LAWRENCEV". "PPK Café" if this keyword appears)
-        - account_type (determine if it's "支票账户" for checking account or "信用卡" for credit card or "餐饮" for diner based on keywords like "account ending in" for checking or "transaction with" for credit card or "Everyday app" for diner)
-        - date (e.g. transform "Sep 3, 2025 at 6:19 PM ET" into "2025-09-03")
+        Args:
+            email_body: The text content of the email.
+            email_subject: The subject of the email.
 
-        If you find the information, return it as a JSON object.
-        If you don't find sufficient information, return an empty JSON object.
-
-        Email Body:
-        ---
-        {email_body}
-        ---
-
-        JSON Output:
+        Returns:
+            A Pydantic BillInfo object or None if extraction fails.
         """
         try:
-            # Replaced print with logger.debug
-            self.logger.debug(f"Sending the following prompt to Gemini:\n{prompt}")
-            response = self.model.generate_content(prompt)
-            json_output = response.text.strip()
-            # Remove markdown code block if present
-            if json_output.startswith("```json") and json_output.endswith("```"):
-                json_output = json_output[7:-3].strip()
-            try:
-                bill_info = json.loads(json_output)
-            except json.JSONDecodeError:
-                # Replaced print with logger.warning
-                self.logger.warning(f"Gemini returned non-JSON response: {json_output}")
-                return {}
+            self.logger.debug(
+                f"Extracting bill info from email subject: '{email_subject}' and body:\n{email_body}"
+            )
+            prediction = self.bill_extractor(
+                email_subject=email_subject, email_body=email_body
+            )
 
-            if "amount" in bill_info and isinstance(bill_info["amount"], str):
-                try:
-                    # Remove currency symbols and commas, then convert to float
-                    amount_str = bill_info["amount"].replace("$", "").replace(",", "")
-                    bill_info["amount"] = float(amount_str)
-                except (ValueError, TypeError):
-                    # Replaced print with logger.warning
-                    self.logger.warning(
-                        f"Could not convert amount to float: {bill_info['amount']}"
-                    )
-
+            # The output is now a Pydantic object, so we can access its fields directly.
+            bill_info = prediction.bill_info
+            self.logger.info(f"Successfully extracted bill info: {bill_info}")
             return bill_info
         except Exception as e:
-            # Replaced print with logger.error
-            self.logger.error(f"Error extracting bill info with Gemini: {e}")
-            return {}
+            self.logger.error(f"Error extracting bill info with DSPy: {e}")
+            # Log the full traceback for debugging
+            self.logger.debug(e, exc_info=True)
+            return None
 
 
 if __name__ == "__main__":
     load_dotenv()
     gemini_api_key = os.getenv("GEMINI_API_KEY")
-    # Get LOG_LEVEL from env, default to WARNING
-    log_level_str = os.getenv("LOG_LEVEL", "WARNING").upper()
+    log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
 
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY not found in .env file")
 
-    # Instantiate GeminiProcessor with the determined log level
     gemini_processor = GeminiProcessor(gemini_api_key, log_level_str=log_level_str)
 
-    # Updated sample email body to include keywords for account type detection
+    sample_email_subject = "You sent a payment to Testing VILLAGE"
     sample_email_body = """
     You sent $1,635.00 to Testing VILLAGE from account ending in (...3925)
 
@@ -86,8 +112,16 @@ if __name__ == "__main__":
     Recipient 	Testing VILLAGE
     Amount 	$1,635.00
     """
-    bill_details = gemini_processor.extract_bill_info(sample_email_body)
-    # Use logger.info for the final output, controlled by the log_level
-    gemini_processor.logger.info(
-        f"Extracted bill details: {json.dumps(bill_details, ensure_ascii=False, indent=2)}"
+    bill_details = gemini_processor.extract_bill_info(
+        sample_email_body, sample_email_subject
     )
+
+    if bill_details:
+        # Convert Pydantic model to a dictionary for JSON serialization
+        bill_details_dict = bill_details.model_dump()
+        gemini_processor.logger.info(
+            "Extracted bill details: %s",
+            json.dumps(bill_details_dict, ensure_ascii=False, indent=2),
+        )
+    else:
+        gemini_processor.logger.warning("Could not extract bill details.")

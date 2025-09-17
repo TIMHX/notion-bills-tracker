@@ -11,6 +11,7 @@ dependencies = [
     "python-dotenv",
     "beautifulsoup4",
     "lxml",
+    "dspy-ai",
 ]
 
 [build-system]

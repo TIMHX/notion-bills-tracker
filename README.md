@@ -5,7 +5,7 @@ This project automates the process of tracking bills from your Gmail inbox and a
 ## Features
 
 -   **Gmail Integration**: Fetches unread emails from your Gmail inbox, specifically those from "Chase" with the label "大通银行明细".
--   **Gemini AI Extraction**: Utilizes Google Gemini (model `gemini-2.0-flash-lite`) to intelligently extract bill details:
+-   **Gemini AI Extraction**: Utilizes Google Gemini (model `gemini-2.0-flash-lite`) via the `dspy` framework to intelligently extract bill details:
     -   `merchant` (支出项目)
     -   `amount` (支出金额)
     -   `account_type` (支出类别 - e.g., "支票账户" for checking account or "信用卡" for credit card)
