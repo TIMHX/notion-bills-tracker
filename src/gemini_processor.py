@@ -52,9 +52,9 @@ class GeminiProcessor:
         try:
             # Configure DSPy with the Gemini model and JSON adapter for Pydantic.
             gemini_lm = dspy.LM(
-                "gemini/gemini-1.5-flash", api_key=api_key, max_output_tokens=2048
+                "gemini/gemini-1.5-flash", api_key=api_key, max_tokens=2048
             )
-            dspy.configure(lm=gemini_lm, adapter=dspy.ChatAdapter)
+            dspy.configure(lm=gemini_lm, adapter=dspy.ChatAdapter())
             self.bill_extractor = BillExtractor()
             self.logger.info("DSPy configured successfully with Gemini model.")
         except Exception as e:
