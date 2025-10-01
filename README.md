@@ -2,6 +2,9 @@
 
 This project automates the process of tracking bills from your Gmail inbox and adding them to a Notion database. It uses the Google Gemini API to extract bill information from emails and the Notion API to manage your bill tracking. Notion MCP is recommanded to use during dev, which provides a strong support on database fetching & figuring out api specifications.
 
+## Public notion demo
+[Bill tracker](https://www.notion.so/public-27f55a34994980c086e6fe771fecea91?source=copy_link) The notion page for personal bill tracking and github workflow tracking.
+
 ## Features
 
 -   **Gmail Integration**: Fetches unread emails from your Gmail inbox, specifically those from "Chase" with the label "大通银行明细".
