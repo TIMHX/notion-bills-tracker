@@ -19,6 +19,15 @@ This project automates the process of tracking bills from your Gmail inbox and a
 -   **Configurable Logging**: Utilizes `logger_utils.py` for structured logging with configurable levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) via environment variables.
 -   **Workflow Tracking**: Tracks the status of each workflow run in a dedicated Notion database, providing visibility into automation health.
 
+## Output example
+### Bill view
+![alt text](demo/image.png)
+![alt text](demo/image-1.png)
+### Workflow view
+![alt text](demo/image-2.png)
+![alt text](demo/image-3.png)
+![alt text](demo/image-4.png)
+
 ## Project Structure
 
 ```
