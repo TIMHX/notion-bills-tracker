@@ -67,7 +67,7 @@ class GeminiProcessor:
         try:
             # Configure DSPy with the Gemini model and JSON adapter for Pydantic.
             gemini_lm = dspy.LM(
-                "gemini/gemini-1.5-flash", api_key=api_key, max_tokens=2048
+                "gemini/gemini-2.5-flash", api_key=api_key, max_tokens=2048
             )
             dspy.configure(lm=gemini_lm, adapter=dspy.ChatAdapter())
             self.bill_extractor = BillExtractor()
