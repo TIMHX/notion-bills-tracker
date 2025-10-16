@@ -8,12 +8,13 @@ This project automates the process of tracking bills from your Gmail inbox and a
 ## Features
 
 -   **Gmail Integration**: Fetches unread emails from your Gmail inbox, specifically those from "Chase" with the label "大通银行明细".
--   **Advanced AI Extraction with DSPy**: Leverages the `dspy` framework to programmatically build reliable AI pipelines. Instead of crafting fragile, monolithic prompts, `dspy` allows for a structured, modular, and optimizable approach to prompting language models like Google Gemini (`gemini-1.5-flash`).
+-   **Advanced AI Extraction with DSPy**: Leverages the `dspy` framework to programmatically build reliable AI pipelines. Instead of crafting fragile, monolithic prompts, `dspy` allows for a structured, modular, and optimizable approach to prompting language models like Google Gemini (`gemini-2.5-flash`).
 -   **Structured & Reliable Output**: Uses `dspy.Signature` to define a clear data schema (`Pydantic` model) for the expected output. `dspy.ChainOfThought` is employed to guide the model's reasoning process, significantly improving the accuracy and reliability of extracting bill details:
     -   `merchant`: The merchant's name.
     -   `amount`: The bill amount.
-    -   `bill_category`: The category of bill (e.g., "娱乐/购物", "其他").
+    -   `bill_category`: The category of bill.
     -   `date`: The transaction date in `YYYY-MM-DD` format.
+-   **Dynamic Bill Category Assignment**: The AI model is dynamically guided to assign `bill_category` values based on a configurable mapping of merchant names defined in `config/bill_categories.yaml` (e.g., "PROG GARDEN ST" maps to "车租和保险", "OPTIMUM" maps to "水电网费"). This ensures flexible and accurate categorization.
 -   **Notion Database Management**: Adds extracted bill information to a specified Notion database with predefined properties.
 -   **Automated Workflow**: Designed to run automatically via GitHub Actions every 6 hours, and can also be triggered manually.
 -   **Configurable Logging**: Utilizes `logger_utils.py` for structured logging with configurable levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) via environment variables.
@@ -35,6 +36,8 @@ notion-bills-tracker/
 ├── .github/
 │   └── workflows/
 │       └── process-bills.yml
+│── config/
+│   └── bill_categories.yaml
 ├── src/
 │   ├── __init__.py
 │   ├── main.py
@@ -70,6 +73,19 @@ This project uses `uv` for dependency management.
 uv venv
 source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
 uv sync
+```
+
+### 2.1. Bill Category Mapping Configuration
+
+The merchant-to-bill category mapping is defined in `config/bill_categories.yaml`. You can easily modify this file to add, update, or remove mappings.
+
+Example `config/bill_categories.yaml`:
+```yaml
+PROG GARDEN ST: 车租和保险
+PUBLIC SERVICE: 水电网费
+OPTIMUM: 水电网费
+EVERYDAY BMS PRINCET: 餐饮
+PPK CAFÉ: 餐饮
 ```
 
 ### 3. Google Cloud & Gmail API Setup
@@ -111,7 +127,6 @@ To use the Gmail API, you'll need to set up OAuth 2.0 credentials. This project 
 
 1.  Go to the [Google AI Studio](https://aistudio.google.com/app/apikey).
 2.  Create an API key.
-3.  **Do NOT commit this key to Git.**
 
 ### 5. Notion Integration Token & Database ID
 
@@ -123,7 +138,7 @@ To use the Gmail API, you'll need to set up OAuth 2.0 credentials. This project 
     -   `支出项目` (Title)
     -   `覆写日期` (Date)
     -   `支出金额` (Number)
-    -   `支出类别` (Select - e.g., "信用卡", "支票账户")
+    -   `支出类别` (Select)
 6.  Share your Notion database with the integration you just created.
 7.  Copy the Database ID from the URL of your Notion database. It's the part after `https://www.notion.so/` and before `?v=...`.
 
