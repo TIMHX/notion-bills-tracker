@@ -19,7 +19,7 @@ class BillInfo(BaseModel):
     )
     bill_category: Optional[str] = Field(
         default=None,
-        description="The bill_category ('餐饮', '娱乐/购物', '水电网费', '房租', '其他').",
+        description="The bill_category ('餐饮', '娱乐/购物', '水电网费', '房租', '车租和保险', '其他').",
     )
     date: Optional[str] = Field(
         default=None, description="The date of the transaction in 'YYYY-MM-DD' format."
