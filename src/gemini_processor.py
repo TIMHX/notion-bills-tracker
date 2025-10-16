@@ -17,8 +17,9 @@ class BillInfo(BaseModel):
     amount: Optional[float] = Field(
         default=None, description="The bill amount as a numeric value."
     )
-    account_type: Optional[str] = Field(
-        default=None, description="The account type ('支票账户', '信用卡', '餐饮')."
+    bill_category: Optional[str] = Field(
+        default=None,
+        description="The bill_category ('餐饮', '娱乐/购物', '水电网费', '房租', '其他').",
     )
     date: Optional[str] = Field(
         default=None, description="The date of the transaction in 'YYYY-MM-DD' format."

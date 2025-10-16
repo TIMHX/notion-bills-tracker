@@ -12,7 +12,7 @@ This project automates the process of tracking bills from your Gmail inbox and a
 -   **Structured & Reliable Output**: Uses `dspy.Signature` to define a clear data schema (`Pydantic` model) for the expected output. `dspy.ChainOfThought` is employed to guide the model's reasoning process, significantly improving the accuracy and reliability of extracting bill details:
     -   `merchant`: The merchant's name.
     -   `amount`: The bill amount.
-    -   `account_type`: The type of account (e.g., "支票账户", "信用卡").
+    -   `bill_category`: The category of bill (e.g., "娱乐/购物", "其他").
     -   `date`: The transaction date in `YYYY-MM-DD` format.
 -   **Notion Database Management**: Adds extracted bill information to a specified Notion database with predefined properties.
 -   **Automated Workflow**: Designed to run automatically via GitHub Actions every 6 hours, and can also be triggered manually.
