@@ -3,6 +3,7 @@ pyproject.toml
 src/__init__.py
 src/gemini_processor.py
 src/gmail_client.py
+src/logger_utils.py
 src/main.py
 src/notion_client.py
 src/notion_bills_tracker.egg-info/PKG-INFO
