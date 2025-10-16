@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from logger_utils import setup_logger
 from pydantic import BaseModel, Field
 from typing import Optional
+import yaml  # Added for YAML parsing
 
 
 # Define a Pydantic model for structured bill information.
@@ -17,8 +18,9 @@ class BillInfo(BaseModel):
     amount: Optional[float] = Field(
         default=None, description="The bill amount as a numeric value."
     )
-    account_type: Optional[str] = Field(
-        default=None, description="The account type ('支票账户', '信用卡', '餐饮')."
+    bill_category: Optional[str] = Field(
+        default=None,
+        description="The bill_category, select within the following: ('餐饮', '娱乐/购物', '水电网费', '房租', '车租和保险', '其他').",
     )
     date: Optional[str] = Field(
         default=None, description="The date of the transaction in 'YYYY-MM-DD' format."
@@ -48,12 +50,37 @@ class BillExtractor(dspy.Module):
     This modularity makes the AI pipeline easier to manage, test, and optimize.
     """
 
-    def __init__(self):
+    def __init__(self, bill_category_mapping: dict):
         super().__init__()
+        # Dynamically create the BillInfoSignature with the mapping in the description
+        mapping_str = "\n".join(
+            [
+                f"- If merchant contains '{k}', category is '{v}'"
+                for k, v in bill_category_mapping.items()
+            ]
+        )
+        updated_bill_category_desc = (
+            "The bill_category, select within the following: ('餐饮', '娱乐/购物', '水电网费', '房租', '车租和保险', '其他'). "
+            "Consider the following rules for categorization:\n"
+            f"{mapping_str}"
+        )
+
+        class DynamicBillInfoSignature(dspy.Signature):
+            email_subject: str = dspy.InputField(desc="The subject of an email.")
+            email_body: str = dspy.InputField(desc="The body of an email.")
+            bill_info: BillInfo = dspy.OutputField(
+                desc="Structured bill information based on the Pydantic model.",
+                json_schema_extra={
+                    "properties": {
+                        "bill_category": {"description": updated_bill_category_desc}
+                    }
+                },
+            )
+
         # ChainOfThought is a DSPy component that explicitly asks the language model
         # to "think step-by-step" before providing the final answer. This improves
         # reasoning and leads to more accurate and reliable structured data extraction.
-        self.extractor = dspy.ChainOfThought(BillInfoSignature)
+        self.extractor = dspy.ChainOfThought(DynamicBillInfoSignature)
 
     def forward(self, email_subject, email_body):
         # The forward method defines the execution logic of the module.
@@ -64,17 +91,36 @@ class BillExtractor(dspy.Module):
 class GeminiProcessor:
     def __init__(self, api_key, log_level_str: str = "WARNING"):
         self.logger = setup_logger(__name__, log_level_str)
+        self.bill_category_mapping = self._load_bill_category_mapping()
         try:
             # Configure DSPy with the Gemini model and JSON adapter for Pydantic.
             gemini_lm = dspy.LM(
                 "gemini/gemini-2.5-flash", api_key=api_key, max_tokens=2048
             )
             dspy.configure(lm=gemini_lm, adapter=dspy.ChatAdapter())
-            self.bill_extractor = BillExtractor()
+            self.bill_extractor = BillExtractor(self.bill_category_mapping)
             self.logger.info("DSPy configured successfully with Gemini model.")
         except Exception as e:
             self.logger.error(f"Failed to configure DSPy with Gemini: {e}")
             raise
+
+    def _load_bill_category_mapping(
+        self, config_path: str = "config/bill_categories.yaml"
+    ):
+        """Loads the bill category mapping from a YAML file."""
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                mapping = yaml.safe_load(f)
+            self.logger.info(
+                f"Successfully loaded bill category mapping from {config_path}"
+            )
+            return mapping
+        except FileNotFoundError:
+            self.logger.error(f"Bill category mapping file not found at {config_path}")
+            return {}
+        except yaml.YAMLError as e:
+            self.logger.error(f"Error parsing YAML file {config_path}: {e}")
+            return {}
 
     def extract_bill_info(
         self, email_body: str, email_subject: str = ""
@@ -99,6 +145,7 @@ class GeminiProcessor:
 
             # The output is now a Pydantic object, so we can access its fields directly.
             bill_info = prediction.bill_info
+
             self.logger.info(f"Successfully extracted bill info: {bill_info}")
             return bill_info
         except Exception as e:

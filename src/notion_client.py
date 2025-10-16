@@ -29,7 +29,7 @@ class NotionClient:
                 "title": [{"text": {"content": bill_info.merchant or "Unknown"}}]
             },
             "支出金额": {"number": bill_info.amount or 0.0},
-            "支出类别": {"select": {"name": bill_info.account_type or "信用卡"}},
+            "支出类别": {"select": {"name": bill_info.bill_category or "其他"}},
             "覆写日期": {
                 "date": {"start": bill_info.date or "2024-01-01"}
             },  # Default date if not found

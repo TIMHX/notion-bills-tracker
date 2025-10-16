@@ -9,6 +9,7 @@ venv/
 bill_env/
 *.env
 .env
+*.egg-info/
 
 # Google API
 token.pickle
