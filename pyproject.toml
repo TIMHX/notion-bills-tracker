@@ -1,6 +1,7 @@
 [project]
 name = "notion-bills-tracker"
 version = "0.1.0"
+requires-python = ">=3.13, <3.14"
 description = "A tool to track personal bills and push to notion."
 dependencies = [
     "google-api-python-client",
