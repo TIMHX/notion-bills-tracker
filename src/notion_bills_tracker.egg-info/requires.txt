@@ -1,9 +1,0 @@
-google-api-python-client
-google-auth-httplib2
-google-auth-oauthlib
-google-generativeai
-requests
-python-dotenv
-beautifulsoup4
-lxml
-dspy-ai
