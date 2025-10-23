@@ -44,8 +44,7 @@ notion-bills-tracker/
 │   ├── gmail_client.py
 │   ├── gemini_processor.py
 │   ├── notion_client.py
-│   ├── logger_utils.py
-│   └── workflow_tracker.py
+│   └── logger_utils.py
 ├── .gitignore
 ├── pyproject.toml
 ├── uv.lock
