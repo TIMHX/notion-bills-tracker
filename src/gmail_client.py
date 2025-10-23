@@ -1,5 +1,6 @@
 import os
 import re
+import yaml
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -31,7 +32,9 @@ class GmailClient:
         return build("gmail", "v1", credentials=creds)
 
     def get_unread_emails(self, sender_filter: str | list[str] | None = None):
-        query = "is:unread label:大通银行明细"
+        with open("config/gmail_config.yaml", "r") as f:
+            config = yaml.safe_load(f)
+        query = config["query"]
         if sender_filter:
             if isinstance(sender_filter, list):
                 if not sender_filter:  # empty list
