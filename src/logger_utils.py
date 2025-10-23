@@ -21,14 +21,14 @@ def setup_logger(name: str, log_level_str: str = "WARNING") -> logging.Logger:
         "CRITICAL": logging.CRITICAL,
     }
     log_level = log_level_map.get(log_level_str.upper(), logging.WARNING)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     logger = logging.getLogger(name)
     if not logger.handlers:
         logger.setLevel(log_level)
         handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
     else:

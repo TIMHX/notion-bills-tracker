@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import yaml
 from dotenv import load_dotenv
 from logger_utils import setup_logger  # Added import
 from gemini_processor import GeminiProcessor
@@ -116,9 +117,14 @@ class NotionClient:
 
 if __name__ == "__main__":
     load_dotenv()
+
+    # Load Notion config from YAML
+    with open("config/notion_config.yaml", "r") as f:
+        notion_config = yaml.safe_load(f)
+    notion_database_id = notion_config["notion_database_id"]
+    notion_workflow_database_id = notion_config["notion_workflow_database_id"]
+
     notion_api_key = os.getenv("NOTION_API_KEY")
-    notion_database_id = os.getenv("NOTION_DATABASE_ID")
-    notion_workflow_database_id = os.getenv("NOTION_WORKFLOW_DATABASE_ID")
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     # Get LOG_LEVEL from env, default to WARNING
     log_level_str = os.getenv("LOG_LEVEL", "WARNING").upper()
@@ -130,7 +136,7 @@ if __name__ == "__main__":
         or not notion_workflow_database_id
     ):
         raise ValueError(
-            "NOTION_API_KEY, NOTION_DATABASE_ID, NOTION_WORKFLOW_DATABASE_ID, and GEMINI_API_KEY must be set in .env file"
+            "NOTION_API_KEY, and GEMINI_API_KEY must be set in .env file and Notion IDs in config.yaml"
         )
 
     # Instantiate NotionClient with the determined log level
