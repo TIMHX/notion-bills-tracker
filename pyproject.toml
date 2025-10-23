@@ -13,8 +13,14 @@ dependencies = [
     "beautifulsoup4",
     "lxml",
     "dspy-ai",
-    "PyYAML", # Added for YAML parsing
+    "PyYAML",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "speckit",
+]
+prod = []
 
 [build-system]
 requires = ["setuptools>=61.0"]
