@@ -13,7 +13,7 @@ dependencies = [
     "beautifulsoup4",
     "lxml",
     "dspy-ai",
-    "PyYAML", # Added for YAML parsing
+    "PyYAML",
 ]
 
 [build-system]
