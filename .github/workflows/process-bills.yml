@@ -34,5 +34,5 @@ jobs:
         run: |
           uv venv bill_env
           source bill_env/bin/activate
-          uv sync --extra prod --active
+          uv sync --active
           python src/main.py

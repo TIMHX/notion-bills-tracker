@@ -16,12 +16,6 @@ dependencies = [
     "PyYAML",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "speckit",
-]
-prod = []
-
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
