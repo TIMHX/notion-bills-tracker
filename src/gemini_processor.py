@@ -105,7 +105,7 @@ class GeminiProcessor:
             raise
 
     def _load_bill_category_mapping(
-        self, config_path: str = "config/bill_categories.yaml"
+        self, config_path: str = "../config/bill_categories.yaml"
     ):
         """Loads the bill category mapping from a YAML file."""
         try:

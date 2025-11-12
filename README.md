@@ -7,7 +7,7 @@ This project automates the process of tracking bills from your Gmail inbox and a
 
 ## Features
 
--   **Gmail Integration**: Fetches unread emails from your Gmail inbox based on a configurable query and sender filter defined in `config/gmail_config.yaml`. For example, it can fetch archived emails from senders like "Chase" or "everyday" with the label "账单".
+-   **Gmail Integration**: Fetches emails from your Gmail inbox based on a configurable `query` and `sender_filter` defined in `config/gmail_config.yaml`. It specifically extracts unread emails that match the specified label (e.g., "账单") and are not in the inbox (archived). The `sender_filter` supports partial, case-insensitive matching (e.g., "Chase" will match "JPMorgan Chase").
 -   **Advanced AI Extraction with DSPy**: Leverages the `dspy` framework to programmatically build reliable AI pipelines. Instead of crafting fragile, monolithic prompts, `dspy` allows for a structured, modular, and optimizable approach to prompting language models like Google Gemini (`gemini-2.5-flash`).
 -   **Structured & Reliable Output**: Uses `dspy.Signature` to define a clear data schema (`Pydantic` model) for the expected output. `dspy.ChainOfThought` is employed to guide the model's reasoning process, significantly improving the accuracy and reliability of extracting bill details:
     -   `merchant`: The merchant's name.

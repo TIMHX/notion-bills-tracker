@@ -31,23 +31,16 @@ class GmailClient:
         creds.refresh(Request())
         return build("gmail", "v1", credentials=creds)
 
-    def get_unread_emails(self, sender_filter: str | list[str] | None = None):
-        with open("config/gmail_config.yaml", "r") as f:
+    def get_unread_emails(self, sender_filter: list[str] | None = None):
+        with open("../config/gmail_config.yaml", "r") as f:
             config = yaml.safe_load(f)
         query = config["query"]
-        if sender_filter:
-            if isinstance(sender_filter, list):
-                if not sender_filter:  # empty list
-                    pass  # skip filter
-                else:
-                    sender_query = " OR ".join(f"from:{s}" for s in sender_filter)
-                    query += f" ({sender_query})"
-            else:
-                if sender_filter.strip():  # non-empty string
-                    query += f" from:{sender_filter}"
+
         results = self.service.users().messages().list(userId="me", q=query).execute()
         messages = results.get("messages", [])
-        unread_emails_data = []
+        self.logger.info(f"messages: {messages}")
+
+        all_unread_emails_data = []
         for message in messages:
             msg = (
                 self.service.users()
@@ -81,7 +74,7 @@ class GmailClient:
 
             body = self._clean_email_body(body)
 
-            unread_emails_data.append(
+            all_unread_emails_data.append(
                 {
                     "id": message["id"],
                     "subject": subject,
@@ -89,7 +82,17 @@ class GmailClient:
                     "body": body,
                 }
             )
-        return unread_emails_data
+
+        if sender_filter:
+            filtered_emails = []
+            for email in all_unread_emails_data:
+                for s_filter in sender_filter:
+                    if s_filter.lower() in email["sender"].lower():
+                        filtered_emails.append(email)
+                        break
+            return filtered_emails
+        else:
+            return all_unread_emails_data
 
     def mark_email_as_read(self, message_id):
         self.service.users().messages().modify(

@@ -119,7 +119,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     # Load Notion config from YAML
-    with open("config/notion_config.yaml", "r") as f:
+    with open("../config/notion_config.yaml", "r") as f:
         notion_config = yaml.safe_load(f)
     notion_database_id = notion_config["notion_database_id"]
     notion_workflow_database_id = notion_config["notion_workflow_database_id"]
