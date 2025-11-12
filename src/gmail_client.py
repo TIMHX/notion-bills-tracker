@@ -32,7 +32,10 @@ class GmailClient:
         return build("gmail", "v1", credentials=creds)
 
     def get_unread_emails(self, sender_filter: list[str] | None = None):
-        with open("../config/gmail_config.yaml", "r") as f:
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "config", "gmail_config.yaml"
+        )
+        with open(config_path, "r") as f:
             config = yaml.safe_load(f)
         query = config["query"]
 

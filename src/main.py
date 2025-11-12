@@ -14,7 +14,10 @@ def main():
     logger = setup_logger(__name__, log_level_str)
 
     # Load gmail config
-    with open("../config/gmail_config.yaml", "r") as f:
+    config_path = os.path.join(
+        os.path.dirname(__file__), "..", "config", "gmail_config.yaml"
+    )
+    with open(config_path, "r") as f:
         gmail_config = yaml.safe_load(f)
 
     sender_filter = gmail_config.get("sender_filter", [])

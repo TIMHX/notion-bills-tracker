@@ -105,8 +105,11 @@ class GeminiProcessor:
             raise
 
     def _load_bill_category_mapping(
-        self, config_path: str = "../config/bill_categories.yaml"
+        self, config_filename: str = "bill_categories.yaml"
     ):
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "config", config_filename
+        )
         """Loads the bill category mapping from a YAML file."""
         try:
             with open(config_path, "r", encoding="utf-8") as f:

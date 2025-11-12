@@ -119,7 +119,10 @@ if __name__ == "__main__":
     load_dotenv()
 
     # Load Notion config from YAML
-    with open("../config/notion_config.yaml", "r") as f:
+    config_path = os.path.join(
+        os.path.dirname(__file__), "..", "config", "notion_config.yaml"
+    )
+    with open(config_path, "r") as f:
         notion_config = yaml.safe_load(f)
     notion_database_id = notion_config["notion_database_id"]
     notion_workflow_database_id = notion_config["notion_workflow_database_id"]
@@ -163,9 +166,12 @@ if __name__ == "__main__":
     notion_client.logger.info("Extracting bill information...")
     bill_details = gemini_processor.extract_bill_info(sample_email_body)
     # Use logger.info for the final output, controlled by the log_level
-    notion_client.logger.info(
-        f"Extracted Bill Details: {json.dumps(bill_details.model_dump(), ensure_ascii=False, indent=2)}"
-    )
+    if bill_details:
+        notion_client.logger.info(
+            f"Extracted Bill Details: {json.dumps(bill_details.model_dump(), ensure_ascii=False, indent=2)}"
+        )
+    else:
+        notion_client.logger.warning("No bill details extracted.")
 
     if bill_details:
         # Replaced print with logger.info
