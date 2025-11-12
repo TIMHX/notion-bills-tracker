@@ -117,37 +117,7 @@ class GmailClient:
 
         # Get text from the body, handling newlines for better readability
         text = soup.get_text(separator="\n", strip=True)
-
-        # Remove forwarded message headers
-        text = re.sub(
-            r"---------- Forwarded message ---------.*", "", text, flags=re.DOTALL
-        )
-        # Remove "On <date>, <author> wrote:" lines
-        text = re.sub(r"On.*wrote:", "", text, flags=re.DOTALL)
-        # Remove quoted text (lines starting with '>')
-        text = re.sub(r"(\n>.*)+", "", text)
-        # Remove signatures (lines starting with '--')
-        text = re.sub(r"\n--.*", "", text, flags=re.DOTALL)
-        # Remove irrelevant alert information
-        text = re.sub(
-            r"You are receiving this alert because.*account\.",
-            "",
-            text,
-            flags=re.DOTALL,
-        )
-        text = re.sub(r"Review account", "", text)
-        text = re.sub(r"Securely access your accounts with.*chase\.com\.", "", text)
-        # Remove "About this message" section
-        text = re.sub(r"About this message.*", "", text, flags=re.DOTALL)
-        # Remove excessive newlines
-        text = re.sub(r"\n{3,}", "\n\n", text)
-
-        # remove for everyday email
-        text = re.sub(r"Item\s*", "", text, flags=re.DOTALL)
-        text = re.sub(r"Paid with\s*", "", text, flags=re.DOTALL)
-        text = re.sub(r"Tax details\s*", "", text, flags=re.DOTALL)
-        text = re.sub(r"Contact\s*", "", text, flags=re.DOTALL)
-        return text.strip()
+        return text
 
 
 if __name__ == "__main__":
