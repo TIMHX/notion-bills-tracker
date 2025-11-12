@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import yaml  # Import the yaml library
 from gmail_client import GmailClient
 from gemini_processor import GeminiProcessor
 from notion_client import NotionClient
@@ -11,6 +12,12 @@ def main():
     load_dotenv()
     log_level_str = os.getenv("LOG_LEVEL", "WARNING").upper()
     logger = setup_logger(__name__, log_level_str)
+
+    # Load gmail config
+    with open("config/gmail_config.yaml", "r") as f:
+        gmail_config = yaml.safe_load(f)
+
+    sender_filter = gmail_config.get("sender_filter", [])
 
     gmail_client = GmailClient(log_level_str=log_level_str)
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
@@ -61,7 +68,7 @@ def main():
     )
 
     try:
-        unread_emails = gmail_client.get_unread_emails(sender_filter=["Chase", "everyday"])
+        unread_emails = gmail_client.get_unread_emails(sender_filter=sender_filter)
         logger.info(f"Found {len(unread_emails)} unread emails.")
 
         for email in unread_emails:

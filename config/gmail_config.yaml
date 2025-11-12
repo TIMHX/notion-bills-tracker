@@ -1,1 +1,2 @@
 query: "is:unread label:账单 -in:inbox"
+sender_filter: ["Chase", "everyday", "citi"]
