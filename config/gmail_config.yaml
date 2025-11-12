@@ -1,1 +1,1 @@
-query: "is:unread label:账单"
+query: "is:unread label:账单 -in:inbox"
