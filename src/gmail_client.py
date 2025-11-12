@@ -110,8 +110,14 @@ class GmailClient:
     def _clean_email_body(self, body: str) -> str:
         """Cleans the email body by removing signatures, quoted text, and excessive whitespace."""
         soup = BeautifulSoup(body, "lxml")
-        # Get text from the body
-        text = soup.get_text()
+
+        # Remove script and style elements
+        for script_or_style in soup(["script", "style"]):
+            script_or_style.extract()
+
+        # Get text from the body, handling newlines for better readability
+        text = soup.get_text(separator="\n", strip=True)
+
         # Remove forwarded message headers
         text = re.sub(
             r"---------- Forwarded message ---------.*", "", text, flags=re.DOTALL
@@ -137,10 +143,10 @@ class GmailClient:
         text = re.sub(r"\n{3,}", "\n\n", text)
 
         # remove for everyday email
-        text = re.sub(r"Item*", "", text, flags=re.DOTALL)
-        text = re.sub(r"Paid with*", "", text, flags=re.DOTALL)
-        text = re.sub(r"Tax details*", "", text, flags=re.DOTALL)
-        text = re.sub(r"Contact*", "", text, flags=re.DOTALL)
+        text = re.sub(r"Item\s*", "", text, flags=re.DOTALL)
+        text = re.sub(r"Paid with\s*", "", text, flags=re.DOTALL)
+        text = re.sub(r"Tax details\s*", "", text, flags=re.DOTALL)
+        text = re.sub(r"Contact\s*", "", text, flags=re.DOTALL)
         return text.strip()
 
 
