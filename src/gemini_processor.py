@@ -24,7 +24,7 @@ class BillInfo(BaseModel):
     )
     date: Optional[str] = Field(
         default=None,
-        description="The date of the transaction in 'YYYY-MM-DD' or 'MM/DD/YYYY' format.",
+        description="The date of the transaction in 'YYYY-MM-DD' format.",
     )
 
 

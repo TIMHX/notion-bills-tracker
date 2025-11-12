@@ -76,6 +76,9 @@ def main():
         logger.info(f"Found {len(unread_emails)} unread emails.")
 
         for email in unread_emails:
+            logger.info(f"Processing email {email['id']}: {email['subject']}")
+            logger.info(f"Sender: {email['sender']}")
+            logger.info(f"Body: {email['body']}")
             bill_info = gemini_processor.extract_bill_info(
                 email_body=email["body"], email_subject=email["subject"]
             )
