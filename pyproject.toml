@@ -14,6 +14,7 @@ dependencies = [
     "lxml",
     "dspy-ai",
     "PyYAML",
+    "tenacity",
 ]
 
 [build-system]

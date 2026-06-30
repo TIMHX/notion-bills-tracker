@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 from logger_utils import setup_logger
 from pydantic import BaseModel, Field
 from typing import Optional
-import yaml  # Added for YAML parsing
+import yaml
+from tenacity import Retrying, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 
 # Define a Pydantic model for structured bill information.
@@ -58,7 +59,7 @@ class BillExtractor(dspy.Module):
     This modularity makes the AI pipeline easier to manage, test, and optimize.
     """
 
-    def __init__(self, bill_category_mapping: dict):
+    def __init__(self, bill_category_mapping: dict, lm):
         super().__init__()
         # Dynamically create the BillInfoSignature with the mapping in the description
         mapping_str = "\n".join(
@@ -88,7 +89,8 @@ class BillExtractor(dspy.Module):
         # ChainOfThought is a DSPy component that explicitly asks the language model
         # to "think step-by-step" before providing the final answer. This improves
         # reasoning and leads to more accurate and reliable structured data extraction.
-        self.extractor = dspy.ChainOfThought(DynamicBillInfoSignature)
+        # LM is passed directly (not global) to avoid state pollution across instances.
+        self.extractor = dspy.ChainOfThought(DynamicBillInfoSignature, lm=lm)
 
     def forward(self, email_subject, email_body):
         # The forward method defines the execution logic of the module.
@@ -101,15 +103,28 @@ class GeminiProcessor:
         self.logger = setup_logger(__name__, log_level_str)
         self.bill_category_mapping = self._load_bill_category_mapping()
         try:
-            # Configure DSPy with the Gemini model and JSON adapter for Pydantic.
-            gemini_lm = dspy.LM(
-                "gemini/gemini-2.5-flash", api_key=api_key, max_tokens=2048
-            )
-            dspy.configure(lm=gemini_lm, adapter=dspy.ChatAdapter())
-            self.bill_extractor = BillExtractor(self.bill_category_mapping)
-            self.logger.info("DSPy configured successfully with Gemini model.")
+            # Support multiple LLM providers via environment variables.
+            # Default: Gemini. Switch via LLM_MODEL / LLM_API_KEY / LLM_BASE_URL.
+            # Examples:
+            #   DeepSeek:  LLM_MODEL=openai/deepseek-chat
+            #              LLM_BASE_URL=https://api.deepseek.com
+            #              LLM_API_KEY=sk-...
+            #   MiniMax:   LLM_MODEL=openai/MiniMax-M2.7
+            #              LLM_BASE_URL=https://api.minimaxi.com/v1
+            #              LLM_API_KEY=...
+            model = os.getenv("LLM_MODEL", "gemini/gemini-2.5-flash")
+            llm_api_key = api_key or os.getenv("LLM_API_KEY")
+            base_url = os.getenv("LLM_BASE_URL")
+
+            lm_kwargs = {"max_tokens": 2048}
+            if base_url:
+                lm_kwargs["api_base"] = base_url
+
+            self.lm = dspy.LM(model, api_key=llm_api_key, **lm_kwargs)
+            self.bill_extractor = BillExtractor(self.bill_category_mapping, self.lm)
+            self.logger.info(f"DSPy configured with model: {model}")
         except Exception as e:
-            self.logger.error(f"Failed to configure DSPy with Gemini: {e}")
+            self.logger.error(f"Failed to configure DSPy: {e}")
             raise
 
     def _load_bill_category_mapping(
@@ -150,18 +165,24 @@ class GeminiProcessor:
             self.logger.debug(
                 f"Extracting bill info from email subject: '{email_subject}' and body:\n{email_body}"
             )
-            prediction = self.bill_extractor(
-                email_subject=email_subject, email_body=email_body
-            )
 
-            # The output is now a Pydantic object, so we can access its fields directly.
-            bill_info = prediction.bill_info
-
-            self.logger.info(f"Successfully extracted bill info: {bill_info}")
-            return bill_info
+            # Retry with exponential backoff for transient failures
+            # (rate limits, server errors, timeouts)
+            for attempt in Retrying(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=2, max=30),
+                retry=retry_if_exception_type(Exception),
+                reraise=True,
+            ):
+                with attempt:
+                    prediction = self.bill_extractor(
+                        email_subject=email_subject, email_body=email_body
+                    )
+                    bill_info = prediction.bill_info
+                    self.logger.info(f"Successfully extracted bill info: {bill_info}")
+                    return bill_info
         except Exception as e:
-            self.logger.error(f"Error extracting bill info with DSPy: {e}")
-            # Log the full traceback for debugging
+            self.logger.error(f"Error extracting bill info after retries: {e}")
             self.logger.debug(e, exc_info=True)
             return None
 

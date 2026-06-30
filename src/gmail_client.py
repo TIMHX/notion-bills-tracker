@@ -41,7 +41,15 @@ class GmailClient:
 
         results = self.service.users().messages().list(userId="me", q=query).execute()
         messages = results.get("messages", [])
-        self.logger.info(f"messages: {messages}")
+        total_estimate = results.get("resultSizeEstimate", len(messages))
+        self.logger.info(
+            f"Fetched {len(messages)} unread emails (total ~{total_estimate})"
+        )
+        if total_estimate > len(messages):
+            self.logger.warning(
+                f"Gmail page limit reached: {total_estimate - len(messages)} "
+                "emails beyond first page will be processed in next run"
+            )
 
         all_unread_emails_data = []
         for message in messages:

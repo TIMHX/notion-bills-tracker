@@ -77,38 +77,50 @@ def main():
         logger.info(f"Found {len(unread_emails)} unread emails.")
 
         for email in unread_emails:
-            logger.info(f"Processing email {email['id']}: {email['subject']}")
-            logger.info(f"Sender: {email['sender']}")
-            logger.debug(f"Body: {email['body']}")
-            bill_info = gemini_processor.extract_bill_info(
-                email_body=email["body"], email_subject=email["subject"]
-            )
-            if bill_info:
-                # 检查是否应该排除该 merchant（避免 double counting）
-                merchant_lower = (bill_info.merchant or "").lower()
-                excluded = any(
-                    ex.lower() in merchant_lower for ex in exclude_merchants
+            try:
+                logger.info(f"Processing email {email['id']}: {email['subject']}")
+                logger.info(f"Sender: {email['sender']}")
+                logger.debug(f"Body: {email['body']}")
+                bill_info = gemini_processor.extract_bill_info(
+                    email_body=email["body"], email_subject=email["subject"]
                 )
-                if excluded:
+                if bill_info:
+                    # 检查是否应该排除该 merchant（避免 double counting）
+                    merchant_lower = (bill_info.merchant or "").lower()
+                    excluded = any(
+                        ex.lower() in merchant_lower for ex in exclude_merchants
+                    )
+                    if excluded:
+                        logger.info(
+                            f"Skipping excluded merchant '{bill_info.merchant}' "
+                            f"in email {email['id']}. Marking as read anyway."
+                        )
+                        gmail_client.mark_email_as_read(email["id"])
+                        continue
+
+                    logger.info(f"Extracted bill: {bill_info}")
+                    result = notion_client.add_bill_to_notion(bill_info)
+                    if result is None:
+                        logger.error(
+                            f"Failed to add bill to Notion for email {email['id']}. "
+                            "Email will NOT be marked as read so it can be retried."
+                        )
+                        continue
+                    gmail_client.mark_email_as_read(email["id"])
+                    logger.info(f"Processed email {email['id']} and added bill to Notion.")
+                else:
+                    # No bill info extracted — mark as read to avoid reprocessing
                     logger.info(
-                        f"Skipping excluded merchant '{bill_info.merchant}' "
-                        f"in email {email['id']}. Marking as read anyway."
+                        f"No bill information found in email {email['id']}. "
+                        "Marking as read."
                     )
                     gmail_client.mark_email_as_read(email["id"])
-                    continue
-
-                logger.info(f"Extracted bill: {bill_info}")
-                result = notion_client.add_bill_to_notion(bill_info)
-                if result is None:
-                    logger.error(
-                        f"Failed to add bill to Notion for email {email['id']}. "
-                        "Email will NOT be marked as read so it can be retried."
-                    )
-                    continue
-                gmail_client.mark_email_as_read(email["id"])
-                logger.info(f"Processed email {email['id']} and added bill to Notion.")
-            else:
-                logger.info(f"No bill information found in email {email['id']}.")
+            except Exception as e:
+                logger.error(
+                    f"Failed to process email {email['id']}: {e}. "
+                    "Skipping to next email."
+                )
+                continue
 
     except Exception as e:
         logger.error(f"Workflow failed: {e}")
