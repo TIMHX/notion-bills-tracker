@@ -90,11 +90,10 @@ class BillExtractor(dspy.Module):
                 },
             )
 
-        # ChainOfThought is a DSPy component that explicitly asks the language model
-        # to "think step-by-step" before providing the final answer. This improves
-        # reasoning and leads to more accurate and reliable structured data extraction.
-        # LM is passed directly (not global) to avoid state pollution across instances.
-        self.extractor = dspy.ChainOfThought(DynamicBillInfoSignature, lm=lm)
+        # LM is NOT stored on the module — it's provided at call time via
+        # dspy.settings.context(lm=lm). This avoids DSPy 3.x serialization
+        # bugs where the LM object leaks into the API request payload.
+        self.extractor = dspy.ChainOfThought(DynamicBillInfoSignature)
 
     def forward(self, email_subject, email_body):
         # The forward method defines the execution logic of the module.
