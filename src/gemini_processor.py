@@ -61,7 +61,10 @@ class BillExtractor(dspy.Module):
 
     def __init__(self, bill_category_mapping: dict, lm):
         super().__init__()
-        self.lm = lm  # stored for dspy.settings.context() use
+        # NOTE: do NOT store `self.lm = lm` — DSPy 3.x will try to JSON-serialize
+        # the module's attributes, and LM objects are not serializable.
+        # The LM is stored externally by GeminiProcessor and passed via
+        # dspy.settings.context() at call time.
         # Dynamically create the BillInfoSignature with the mapping in the description
         mapping_str = "\n".join(
             [
@@ -117,11 +120,11 @@ class GeminiProcessor:
                 "No LLM API keys configured. "
                 "Set at least one of: DEEPSEEK_API_KEY, GEMINI_API_KEY, MINIMAX_API_KEY."
             )
-        names = [name for name, _ in self.extractors]
+        names = [name for name, _, _ in self.extractors]
         self.logger.info(f"LLM provider chain: {' → '.join(names)}")
 
     def _build_extractor_chain(self, gemini_api_key):
-        """Build ordered list of (name, BillExtractor) from available API keys."""
+        """Build ordered list of (name, lm, BillExtractor) from available API keys. LM is stored alongside the extractor (not on it) to avoid DSPy 3.x serialization bug."""
         extractors = []
 
         # 1. DeepSeek (primary — cheapest, good quality)
@@ -135,7 +138,7 @@ class GeminiProcessor:
                     max_tokens=2048,
                 )
                 extractors.append(
-                    ("DeepSeek", BillExtractor(self.bill_category_mapping, lm))
+                    ("DeepSeek", lm, BillExtractor(self.bill_category_mapping, lm))
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to init DeepSeek: {e}")
@@ -149,7 +152,7 @@ class GeminiProcessor:
                     max_tokens=2048,
                 )
                 extractors.append(
-                    ("Gemini", BillExtractor(self.bill_category_mapping, lm))
+                    ("Gemini", lm, BillExtractor(self.bill_category_mapping, lm))
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to init Gemini: {e}")
@@ -165,7 +168,7 @@ class GeminiProcessor:
                     max_tokens=2048,
                 )
                 extractors.append(
-                    ("MiniMax", BillExtractor(self.bill_category_mapping, lm))
+                    ("MiniMax", lm, BillExtractor(self.bill_category_mapping, lm))
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to init MiniMax: {e}")
@@ -213,12 +216,12 @@ class GeminiProcessor:
         """
         last_error = None
 
-        for name, extractor in self.extractors:
+        for name, lm, extractor in self.extractors:
             try:
                 self.logger.debug(f"Trying {name}...")
                 # dspy.settings.context() sets the LM for this block only
                 # — no global pollution, auto-restores on exit.
-                with dspy.settings.context(lm=extractor.lm):
+                with dspy.settings.context(lm=lm):
                     for attempt in Retrying(
                         stop=stop_after_attempt(2),
                         wait=wait_exponential(multiplier=1, min=2, max=10),
