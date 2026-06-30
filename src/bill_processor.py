@@ -63,7 +63,7 @@ class BillExtractor(dspy.Module):
         super().__init__()
         # NOTE: do NOT store `self.lm = lm` — DSPy 3.x will try to JSON-serialize
         # the module's attributes, and LM objects are not serializable.
-        # The LM is stored externally by GeminiProcessor and passed via
+        # The LM is stored externally by BillProcessor and passed via
         # dspy.settings.context() at call time.
         # Dynamically create the BillInfoSignature with the mapping in the description
         mapping_str = "\n".join(
@@ -102,7 +102,7 @@ class BillExtractor(dspy.Module):
         return prediction
 
 
-class GeminiProcessor:
+class BillProcessor:
     """Processor that extracts bill info from emails using DSPy + LLM.
 
     Uses a provider fallback chain: DeepSeek → Gemini → MiniMax.
@@ -111,10 +111,10 @@ class GeminiProcessor:
     Configure by setting: DEEPSEEK_API_KEY, GEMINI_API_KEY, MINIMAX_API_KEY.
     """
 
-    def __init__(self, gemini_api_key=None, log_level_str: str = "WARNING"):
+    def __init__(self, gemini_key=None, log_level_str: str = "WARNING"):
         self.logger = setup_logger(__name__, log_level_str)
         self.bill_category_mapping = self._load_bill_category_mapping()
-        self.extractors = self._build_extractor_chain(gemini_api_key)
+        self.extractors = self._build_extractor_chain(gemini_key)
         if not self.extractors:
             raise ValueError(
                 "No LLM API keys configured. "
@@ -123,7 +123,7 @@ class GeminiProcessor:
         names = [name for name, _, _ in self.extractors]
         self.logger.info(f"LLM provider chain: {' → '.join(names)}")
 
-    def _build_extractor_chain(self, gemini_api_key):
+    def _build_extractor_chain(self, gemini_key):
         """Build ordered list of (name, lm, BillExtractor) from available API keys. LM is stored alongside the extractor (not on it) to avoid DSPy 3.x serialization bug."""
         extractors = []
 
@@ -144,11 +144,11 @@ class GeminiProcessor:
                 self.logger.warning(f"Failed to init DeepSeek: {e}")
 
         # 2. Gemini (fallback — reliable, free tier)
-        if gemini_api_key:
+        if gemini_key:
             try:
                 lm = dspy.LM(
                     "gemini/gemini-2.5-flash",
-                    api_key=gemini_api_key,
+                    api_key=gemini_key,
                     max_tokens=2048,
                 )
                 extractors.append(
@@ -251,13 +251,19 @@ class GeminiProcessor:
 
 if __name__ == "__main__":
     load_dotenv()
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
     log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
 
-    if not gemini_api_key:
-        raise ValueError("GEMINI_API_KEY not found in .env file")
+    # BillProcessor supports any of: DEEPSEEK_API_KEY, GEMINI_API_KEY, MINIMAX_API_KEY
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
+    minimax_api_key = os.getenv("MINIMAX_API_KEY")
+    if not any([deepseek_api_key, gemini_api_key, minimax_api_key]):
+        raise ValueError(
+            "At least one LLM API key required. "
+            "Set DEEPSEEK_API_KEY, GEMINI_API_KEY, or MINIMAX_API_KEY."
+        )
 
-    gemini_processor = GeminiProcessor(gemini_api_key, log_level_str=log_level_str)
+    bill_processor = BillProcessor(gemini_api_key, log_level_str=log_level_str)
 
     sample_email_subject = "You sent a payment to Testing VILLAGE"
     sample_email_body = """
@@ -268,16 +274,16 @@ if __name__ == "__main__":
     Recipient 	Testing VILLAGE
     Amount 	$1,635.00
     """
-    bill_details = gemini_processor.extract_bill_info(
+    bill_details = bill_processor.extract_bill_info(
         sample_email_body, sample_email_subject
     )
 
     if bill_details:
         # Convert Pydantic model to a dictionary for JSON serialization
         bill_details_dict = bill_details.model_dump()
-        gemini_processor.logger.info(
+        bill_processor.logger.info(
             "Extracted bill details: %s",
             json.dumps(bill_details_dict, ensure_ascii=False, indent=2),
         )
     else:
-        gemini_processor.logger.warning("Could not extract bill details.")
+        bill_processor.logger.warning("Could not extract bill details.")

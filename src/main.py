@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 import yaml
 from gmail_client import GmailClient
-from gemini_processor import GeminiProcessor
+from bill_processor import BillProcessor
 from notion_client import NotionClient
 from dotenv import load_dotenv
 from logger_utils import setup_logger
@@ -50,7 +50,7 @@ def main():
         workflow_notes = "Missing LLM API key."
         return
 
-    gemini_processor = GeminiProcessor(gemini_api_key, log_level_str=log_level_str)
+    bill_processor = BillProcessor(gemini_api_key, log_level_str=log_level_str)
     notion_client = NotionClient(
         notion_api_key,
         notion_database_id,
@@ -91,7 +91,7 @@ def main():
                 logger.info(f"Processing email {email['id']}: {email['subject']}")
                 logger.info(f"Sender: {email['sender']}")
                 logger.debug(f"Body: {email['body']}")
-                bill_info = gemini_processor.extract_bill_info(
+                bill_info = bill_processor.extract_bill_info(
                     email_body=email["body"], email_subject=email["subject"]
                 )
                 if bill_info.merchant:

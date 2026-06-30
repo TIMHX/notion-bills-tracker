@@ -5,7 +5,7 @@ import os
 import yaml
 from dotenv import load_dotenv
 from logger_utils import setup_logger  # Added import
-from gemini_processor import GeminiProcessor
+from bill_processor import BillProcessor
 
 
 class NotionClient:
@@ -133,14 +133,16 @@ if __name__ == "__main__":
 
     notion_api_key = os.getenv("NOTION_API_KEY")
     gemini_api_key = os.getenv("GEMINI_API_KEY")
+    deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
+    minimax_api_key = os.getenv("MINIMAX_API_KEY")
     # Get LOG_LEVEL from env, default to WARNING
     log_level_str = os.getenv("LOG_LEVEL", "WARNING").upper()
 
     if (
         not notion_api_key
         or not notion_database_id
-        or not gemini_api_key
         or not notion_workflow_database_id
+        or not any([deepseek_api_key, gemini_api_key, minimax_api_key])
     ):
         raise ValueError(
             "NOTION_API_KEY, and GEMINI_API_KEY must be set in .env file and Notion IDs in config.yaml"
@@ -153,9 +155,9 @@ if __name__ == "__main__":
         notion_workflow_database_id,
         log_level_str=log_level_str,
     )
-    gemini_processor = GeminiProcessor(
+    bill_processor = BillProcessor(
         gemini_api_key, log_level_str=log_level_str
-    )  # Pass log level to GeminiProcessor as well
+    )  # Pass log level to BillProcessor as well
 
     sample_email_body = """
     You sent $1,635.00 to Testing VILLAGE from account ending in (...3925)
@@ -168,7 +170,7 @@ if __name__ == "__main__":
 
     # Replaced print with logger.info
     notion_client.logger.info("Extracting bill information...")
-    bill_details = gemini_processor.extract_bill_info(sample_email_body)
+    bill_details = bill_processor.extract_bill_info(sample_email_body)
     # Use logger.info for the final output, controlled by the log_level
     if bill_details:
         notion_client.logger.info(
