@@ -61,6 +61,7 @@ class BillExtractor(dspy.Module):
 
     def __init__(self, bill_category_mapping: dict, lm):
         super().__init__()
+        self.lm = lm  # stored for dspy.settings.context() use
         # Dynamically create the BillInfoSignature with the mapping in the description
         mapping_str = "\n".join(
             [
@@ -214,19 +215,22 @@ class GeminiProcessor:
         for name, extractor in self.extractors:
             try:
                 self.logger.debug(f"Trying {name}...")
-                for attempt in Retrying(
-                    stop=stop_after_attempt(2),
-                    wait=wait_exponential(multiplier=1, min=2, max=10),
-                    retry=retry_if_exception_type(Exception),
-                    reraise=True,
-                ):
-                    with attempt:
-                        prediction = extractor(
-                            email_subject=email_subject, email_body=email_body
-                        )
-                        bill_info = prediction.bill_info
-                        self.logger.info(f"✓ {name}: {bill_info}")
-                        return bill_info
+                # dspy.settings.context() sets the LM for this block only
+                # — no global pollution, auto-restores on exit.
+                with dspy.settings.context(lm=extractor.lm):
+                    for attempt in Retrying(
+                        stop=stop_after_attempt(2),
+                        wait=wait_exponential(multiplier=1, min=2, max=10),
+                        retry=retry_if_exception_type(Exception),
+                        reraise=True,
+                    ):
+                        with attempt:
+                            prediction = extractor(
+                                email_subject=email_subject, email_body=email_body
+                            )
+                            bill_info = prediction.bill_info
+                            self.logger.info(f"✓ {name}: {bill_info}")
+                            return bill_info
             except Exception as e:
                 self.logger.warning(f"✗ {name} failed: {e}")
                 last_error = e
