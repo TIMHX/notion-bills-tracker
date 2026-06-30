@@ -90,7 +90,6 @@ def main():
             try:
                 logger.info(f"Processing email {email['id']}: {email['subject']}")
                 logger.info(f"Sender: {email['sender']}")
-                logger.debug(f"Body: {email['body']}")
                 bill_info = bill_processor.extract_bill_info(
                     email_body=email["body"], email_subject=email["subject"]
                 )
