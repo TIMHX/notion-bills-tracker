@@ -1,24 +1,25 @@
 # Notion Bill Tracker
 
-This project automates the process of tracking bills from your Gmail inbox and adding them to a Notion database. It uses the Google Gemini API to extract bill information from emails and the Notion API to manage your bill tracking. Notion MCP is recommanded to use during dev, which provides a strong support on database fetching & figuring out api specifications.
+从 Gmail 自动提取账单信息并写入 Notion 数据库。使用 DSPy + 多 LLM provider fallback 做结构化提取。
 
 ## Public notion demo
-[Bill tracker](https://www.notion.so/public-27f55a34994980c086e6fe771fecea91?source=copy_link) The notion page for personal bill tracking and github workflow tracking.
+[Bill tracker](https://www.notion.so/public-27f55a34994980c086e6fe771fecea91?source=copy_link) — 个人账单追踪 & workflow 运行记录。
 
 ## Features
 
--   **Gmail Integration**: Fetches emails from your Gmail inbox based on a configurable `query` and `sender_filter` defined in `config/gmail_config.yaml`. It specifically extracts unread emails that match the specified label (e.g., "账单") and are not in the inbox (archived). The `sender_filter` supports partial, case-insensitive matching (e.g., "Chase" will match "JPMorgan Chase").
--   **Advanced AI Extraction with DSPy**: Leverages the `dspy` framework to programmatically build reliable AI pipelines. Instead of crafting fragile, monolithic prompts, `dspy` allows for a structured, modular, and optimizable approach to prompting language models like Google Gemini (`gemini-2.5-flash`).
--   **Structured & Reliable Output**: Uses `dspy.Signature` to define a clear data schema (`Pydantic` model) for the expected output. `dspy.ChainOfThought` is employed to guide the model's reasoning process, significantly improving the accuracy and reliability of extracting bill details:
-    -   `merchant`: The merchant's name.
-    -   `amount`: The bill amount.
-    -   `bill_category`: The category of bill.
-    -   `date`: The transaction date in `YYYY-MM-DD` format.
--   **Dynamic Bill Category Assignment**: The AI model is dynamically guided to assign `bill_category` values based on a configurable mapping of merchant names defined in `config/bill_categories.yaml` (e.g., "PROG GARDEN ST" maps to "车租和保险", "OPTIMUM" maps to "水电网费"). This ensures flexible and accurate categorization.
--   **Notion Database Management**: Adds extracted bill information to a specified Notion database with predefined properties.
--   **Automated Workflow**: Designed to run automatically via GitHub Actions every 6 hours, and can also be triggered manually.
--   **Configurable Logging**: Utilizes `logger_utils.py` for structured logging with configurable levels (DEBUG, INFO, WARNING, ERROR, CRITICAL) via environment variables.
--   **Workflow Tracking**: Tracks the status of each workflow run in a dedicated Notion database, providing visibility into automation health.
+- **Gmail Integration**: 根据 `config/gmail_config.yaml` 中配置的 `query` 和 `sender_filter` 拉取未读邮件。`sender_filter` 支持部分匹配、大小写不敏感（如 `"Chase"` 匹配 `"JPMorgan Chase"`）。
+- **Double-Counting Prevention**: `exclude_merchants` 配置项可排除特定商户（如 Chase 账单中的 `CITI AUTOPAY` 会被跳过，避免 Citi 独立账单重复记账）。
+- **Multi-Provider LLM Fallback**: 使用 DSPy 结构化提取，按顺序尝试 DeepSeek → Gemini → MiniMax。每个 provider 独立重试（exponential backoff），失败自动切换到下一个。设置 `DEEPSEEK_API_KEY` / `GEMINI_API_KEY` / `MINIMAX_API_KEY` 中至少一个即可。
+- **Structured Extraction**: 基于 Pydantic 模型 + DSPy Signature 提取：
+  - `merchant` — 商户名称
+  - `amount` — 金额
+  - `bill_category` — 账单类别（餐饮 / 娱乐购物 / 水电网费 / 房租 / 车租和保险 / 其他）
+  - `date` — 交易日期（`YYYY-MM-DD`）
+  - `expense_type` — 支出 vs. 收入（`支出` / `收入`，不确定时默认 `支出`）
+- **Dynamic Bill Category Mapping**: `config/bill_categories.yaml` 中按商户关键词映射类别（如 `"PROG GARDEN ST"` → `"车租和保险"`），DSPy prompt 中动态注入。
+- **Notion Database Management**: 提取结果写入 Notion database，含 `支出项目`、`支出金额`、`支出类别`、`支出 vs. 收入`、`覆写日期` 等属性。
+- **Workflow Tracking**: 每次运行状态记录到独立 Notion database，含 commit ID、workflow URL、触发者等，方便监控。
+- **Configurable Logging**: 敏感信息（邮件 subject/sender/body、提取出的账单详情）仅 `DEBUG` 级别输出。汇总统计（总数、成功/跳过/错误数）`INFO` 级别输出。默认 `WARNING` 不泄露交易数据。通过 `LOG_LEVEL` 环境变量控制。
 
 ## Output example
 ### Bill view
@@ -35,16 +36,19 @@ This project automates the process of tracking bills from your Gmail inbox and a
 notion-bills-tracker/
 ├── .github/
 │   └── workflows/
-│       └── process-bills.yml
-│── config/
-│   └── bill_categories.yaml
+│       ├── process-bills.yml    # 定时 + 手动触发
+│       └── get_secret.yaml      # 调试用：验证 secrets 是否正确注入
+├── config/
+│   ├── bill_categories.yaml     # 商户 → 类别映射
+│   ├── gmail_config.yaml        # Gmail query、sender_filter、exclude_merchants
+│   └── notion_config.yaml       # Notion database ID
 ├── src/
 │   ├── __init__.py
-│   ├── main.py
-│   ├── gmail_client.py
-│   ├── gemini_processor.py
-│   ├── notion_client.py
-│   └── logger_utils.py
+│   ├── main.py                  # 主流程
+│   ├── gmail_client.py          # Gmail API 封装
+│   ├── bill_processor.py        # DSPy + 多 provider fallback 提取
+│   ├── notion_client.py         # Notion API 封装
+│   └── logger_utils.py          # 统一日志
 ├── .gitignore
 ├── pyproject.toml
 ├── uv.lock
@@ -56,107 +60,99 @@ notion-bills-tracker/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/notion-bills-tracker.git
+git clone https://github.com/TIMHX/notion-bills-tracker.git
 cd notion-bills-tracker
 ```
 
-### 2. Set up a Python Virtual Environment with uv
-
-This project uses `uv` for dependency management.
+### 2. Set up Python Environment with uv
 
 ```bash
-# Install uv if you haven't already
-# pip install uv
-
-# Create a virtual environment and install dependencies
 uv venv
-source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
+source .venv/bin/activate
 uv sync
 ```
 
-### 2.1. Bill Category Mapping Configuration
+### 3. Configuration Files
 
-The merchant-to-bill category mapping is defined in `config/bill_categories.yaml`. You can easily modify this file to add, update, or remove mappings.
+#### `config/gmail_config.yaml`
+```yaml
+query: "is:unread label:账单 -in:inbox"
+sender_filter: ["Chase", "citi"]
+# 排除特定 merchant，避免 double counting
+# 例：Chase 和 Citi 账单中同时出现 CITI AUTOPAY，排除后只记 Citi 自己发的
+exclude_merchants: ["CITI AUTOPAY"]
+```
 
-Example `config/bill_categories.yaml`:
+#### `config/bill_categories.yaml`
+商户关键词 → 类别映射，DSPy 提取时动态注入：
 ```yaml
 PROG GARDEN ST: 车租和保险
+TOYOTA: 车租和保险
 PUBLIC SERVICE: 水电网费
 OPTIMUM: 水电网费
-EVERYDAY BMS PRINCET: 餐饮
+EVERYDAY: 餐饮
 PPK CAFÉ: 餐饮
+CITI AUTOPAY: 娱乐/购物
+COSTCO: 娱乐/购物
 ```
 
-### 3. Google Cloud & Gmail API Setup
+### 4. Google Cloud & Gmail API Setup
 
-To use the Gmail API, you'll need to set up OAuth 2.0 credentials. This project uses a refresh token for non-interactive authentication, which is ideal for automated scripts.
+1.  [Google Cloud Console](https://console.cloud.google.com/) 创建项目，启用 **Gmail API**。
+2.  OAuth consent screen → External → 添加 scope：
+    - `https://www.googleapis.com/auth/gmail.readonly`
+    - `https://www.googleapis.com/auth/gmail.modify`
+3.  Credentials → Create OAuth client ID → Web application，Redirect URI 填 `https://developers.google.com/oauthplayground`。获得 **Client ID** 和 **Client Secret**。
+4.  [OAuth 2.0 Playground](https://developers.google.com/oauthplayground) → 齿轮图标 → 勾选 "Use your own OAuth credentials" 填入 Client ID/Secret → 粘贴 scopes → Authorize → Exchange → 获得 **Refresh Token**。
 
-1.  **Create a Google Cloud Project**:
-    *   Go to the [Google Cloud Console](https://console.cloud.google.com/).
-    *   Create a new project or select an existing one.
-    *   Enable the **Gmail API** for your project.
+### 5. LLM API Keys（至少设一个）
 
-2.  **Configure OAuth Consent Screen**:
-    *   Go to "APIs & Services" > "OAuth consent screen".
-    *   Choose "External" and create the consent screen.
-    *   Provide an app name, user support email, and developer contact information.
-    *   In the "Scopes" section, add the following scopes:
-        *   `https://www.googleapis.com/auth/gmail.readonly`
-        *   `https://www.googleapis.com/auth/gmail.modify`
-    *   In the "Test users" section, add the Google account you'll be using to access Gmail.
+| Provider | 获取方式 | 环境变量 |
+|---|---|---|
+| DeepSeek（推荐，快 + 便宜） | [platform.deepseek.com](https://platform.deepseek.com/) | `DEEPSEEK_API_KEY` |
+| Gemini（稳定，有免费额度） | [Google AI Studio](https://aistudio.google.com/app/apikey) | `GEMINI_API_KEY` |
+| MiniMax（备用） | [minimaxi.com](https://www.minimaxi.com/) | `MINIMAX_API_KEY` |
 
-3.  **Create OAuth 2.0 Credentials**:
-    *   Go to "APIs & Services" > "Credentials".
-    *   Click "Create Credentials" > "OAuth client ID".
-    *   Select "Web application" as the application type.
-    *   Under "Authorized redirect URIs", add `https://developers.google.com/oauthplayground`.
-    *   Click "Create". You will get a **Client ID** and **Client Secret**.
+### 6. Notion Integration
 
-4.  **Generate a Refresh Token**:
-    *   Go to the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground).
-    *   In the top right corner, click the gear icon ("OAuth 2.0 configuration").
-    *   Check "Use your own OAuth credentials" and enter your **Client ID** and **Client Secret**.
-    *   In the "Step 1: Select & authorize APIs" section, paste the following scopes and click "Authorize APIs":
-        `https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify`
-    *   Follow the prompts to grant access to your Google account.
-    *   In "Step 2: Exchange authorization code for tokens", click "Exchange authorization code for tokens".
-    *   You will receive a **Refresh token**. Copy this value.
+1.  [Notion Integrations](https://www.notion.so/my-integrations) → New integration → 获得 **Internal Integration Token**。
+2.  创建账单 database，属性如下（中文名，区分大小写）：
 
-### 4. Google Gemini API Key
+    | 属性名 | 类型 |
+    |---|---|
+    | `支出项目` | Title |
+    | `支出金额` | Number |
+    | `支出类别` | Select（选项：餐饮 / 娱乐购物 / 水电网费 / 房租 / 车租和保险 / 其他） |
+    | `支出 vs. 收入` | Select（选项：支出 / 收入） |
+    | `覆写日期` | Date |
 
-1.  Go to the [Google AI Studio](https://aistudio.google.com/app/apikey).
-2.  Create an API key.
+3.  创建 workflow tracking database（任意 schema，代码按属性名匹配）。
+4.  分别将两个 database share 给 integration。
+5.  从 URL 提取 Database ID（`https://www.notion.so/` 后、`?v=` 前的部分）。
 
-### 5. Notion Integration Token & Database ID
+### 7. Environment Variables
 
-1.  Go to your [Notion Integrations page](https://www.notion.so/my-integrations).
-2.  Click "New integration".
-3.  Give it a name (e.g., "Bill Tracker Integration") and associate it with your workspace.
-4.  Copy the "Internal Integration Token".
-5.  Create a new Notion database for your bills. It should have the following properties (case-sensitive, using Chinese names as per implementation):
-    -   `支出项目` (Title)
-    -   `覆写日期` (Date)
-    -   `支出金额` (Number)
-    -   `支出类别` (Select)
-6.  Share your Notion database with the integration you just created.
-7.  Copy the Database ID from the URL of your Notion database. It's the part after `https://www.notion.so/` and before `?v=...`.
+创建 `.env`（本地开发）：
 
-### 6. Environment Variables
+```env
+# Gmail OAuth（必填）
+GMAIL_CLIENT_ID=your_client_id
+GMAIL_CLIENT_SECRET=your_client_secret
+GMAIL_REFRESH_TOKEN=your_refresh_token
 
-Create a `.env` file in the root of your project with the following variables:
+# Notion（必填）
+NOTION_API_KEY=your_notion_integration_token
+NOTION_DATABASE_ID=your_bill_database_id
+NOTION_WORKFLOW_DATABASE_ID=your_workflow_database_id
 
+# LLM（至少设一个）
+DEEPSEEK_API_KEY=sk-xxx
+GEMINI_API_KEY=AIza...
+MINIMAX_API_KEY=eyJ...
+
+# 可选
+LOG_LEVEL=WARNING  # WARNING | INFO | DEBUG（DEBUG 会输出全文，仅调试用）
 ```
-GMAIL_CLIENT_ID=YOUR_GMAIL_CLIENT_ID
-GMAIL_CLIENT_SECRET=YOUR_GMAIL_CLIENT_SECRET
-GMAIL_REFRESH_TOKEN=YOUR_GMAIL_REFRESH_TOKEN
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY
-NOTION_API_KEY=YOUR_NOTION_API_KEY
-NOTION_DATABASE_ID=YOUR_NOTION_DATABASE_ID
-NOTION_WORKFLOW_DATABASE_ID=YOUR_NOTION_WORKFLOW_DATABASE_ID
-LOG_LEVEL=WARNING # Optional: DEBUG, INFO, WARNING, ERROR, CRITICAL
-```
-
-Replace the placeholder values with your actual credentials.
 
 ## Running Locally
 
@@ -164,26 +160,29 @@ Replace the placeholder values with your actual credentials.
 python src/main.py
 ```
 
-The script uses the refresh token to authenticate with the Gmail API, so no browser interaction is needed after the initial setup.
+使用 refresh token 认证 Gmail API，无需浏览器交互。
 
 ## GitHub Actions Setup
 
-To run this project automatically on GitHub Actions, you need to set up repository secrets:
+1.  Repository → Settings → Secrets and variables → Actions → 添加以下 secrets：
 
-1.  Go to your GitHub repository settings.
-2.  Navigate to "Secrets and variables" > "Actions".
-3.  Add the following repository secrets:
-    -   `GMAIL_CLIENT_ID`: Your Google Cloud OAuth Client ID.
-    -   `GMAIL_CLIENT_SECRET`: Your Google Cloud OAuth Client Secret.
-    -   `GMAIL_REFRESH_TOKEN`: The refresh token you generated.
-    -   `NOTION_API_KEY`: Your Notion internal integration token.
-    -   `NOTION_DATABASE_ID`: Your Notion database ID.
-    -   `NOTION_WORKFLOW_DATABASE_ID`: Your Notion database ID for workflow tracking.
-    -   `GEMINI_API_KEY`: Your Google Gemini API key.
-    -   `LOG_LEVEL`: (Optional) The logging level for the application (e.g., `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Defaults to `WARNING`.
+    | Secret | 说明 |
+    |---|---|
+    | `GMAIL_CLIENT_ID` | Google OAuth Client ID |
+    | `GMAIL_CLIENT_SECRET` | Google OAuth Client Secret |
+    | `GMAIL_REFRESH_TOKEN` | Gmail refresh token |
+    | `NOTION_API_KEY` | Notion integration token |
+    | `NOTION_DATABASE_ID` | 账单 database ID |
+    | `NOTION_WORKFLOW_DATABASE_ID` | workflow tracking database ID |
+    | `DEEPSEEK_API_KEY` | DeepSeek API key |
+    | `GEMINI_API_KEY` | Gemini API key |
+    | `MINIMAX_API_KEY` | MiniMax API key |
+    | `LOG_LEVEL` | （可选）默认 `WARNING`。设 `DEBUG` 仅调试用 |
 
-The `process-bills.yml` workflow is configured to run daily every 6 hours UTC (`0 */6 * * *`) and can also be triggered manually via `workflow_dispatch`.
+2.  工作流每 **12 小时**自动运行，也可在 Actions tab 手动 `workflow_dispatch` 触发。
+
+3.  `get_secret.yaml`：调试用 workflow，验证 secrets 是否正确注入（仅你作为 repo collaborator 可触发，public repo 的 workflow_dispatch 外部不可见）。
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License.
