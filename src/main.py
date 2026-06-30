@@ -59,8 +59,8 @@ def main():
     )
 
     workflow_name = "Process Bills Workflow"
-    workflow_status = "Success"
-    workflow_notes = "Successfully processed all bills."
+    workflow_status = "Skipped"  # default; updated below
+    workflow_notes = ""
 
     # Get GitHub Actions environment variables
     github_repository = os.getenv("GITHUB_REPOSITORY")
@@ -78,6 +78,13 @@ def main():
         unread_emails = gmail_client.get_unread_emails(sender_filter=sender_filter)
         logger.info(f"sender_filter: {sender_filter}")
         logger.info(f"Found {len(unread_emails)} unread emails.")
+
+        # Track per-email outcomes for accurate status reporting
+        count_processed = 0
+        count_skipped = 0
+        count_empty = 0
+        count_errors = 0
+        failed_ids = []
 
         for email in unread_emails:
             try:
@@ -99,6 +106,7 @@ def main():
                             f"in email {email['id']}. Marking as read anyway."
                         )
                         gmail_client.mark_email_as_read(email["id"])
+                        count_skipped += 1
                         continue
 
                     logger.info(f"Extracted bill: {bill_info}")
@@ -108,8 +116,11 @@ def main():
                             f"Failed to add bill to Notion for email {email['id']}. "
                             "Email will NOT be marked as read so it can be retried."
                         )
+                        count_errors += 1
+                        failed_ids.append(email["id"])
                         continue
                     gmail_client.mark_email_as_read(email["id"])
+                    count_processed += 1
                     logger.info(f"Processed email {email['id']} and added bill to Notion.")
                 else:
                     # No bill info extracted — mark as read to avoid reprocessing
@@ -118,12 +129,40 @@ def main():
                         "Marking as read."
                     )
                     gmail_client.mark_email_as_read(email["id"])
+                    count_empty += 1
             except Exception as e:
                 logger.error(
                     f"Failed to process email {email['id']}: {e}. "
-                    "Skipping to next email."
+                    "Keeping unread for retry."
                 )
+                count_errors += 1
+                failed_ids.append(email["id"])
                 continue
+
+        # Determine final status and build notes
+        total = len(unread_emails)
+        parts = [f"Total: {total}", f"Processed: {count_processed}"]
+        if count_skipped:
+            parts.append(f"Skipped: {count_skipped}")
+        if count_empty:
+            parts.append(f"Empty: {count_empty}")
+        if count_errors:
+            parts.append(f"Errors: {count_errors}")
+            if failed_ids:
+                ids_str = ", ".join(failed_ids[:5])
+                if len(failed_ids) > 5:
+                    ids_str += f" (+{len(failed_ids) - 5} more)"
+                parts.append(f"Failed IDs: {ids_str}")
+
+        workflow_notes = "; ".join(parts)
+
+        if total == 0:
+            workflow_status = "Skipped"
+            workflow_notes = "No unread emails found."
+        elif count_errors > 0:
+            workflow_status = "Failed"
+        else:
+            workflow_status = "Success"
 
     except Exception as e:
         logger.error(f"Workflow failed: {e}")
