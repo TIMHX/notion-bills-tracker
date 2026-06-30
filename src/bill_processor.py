@@ -233,7 +233,7 @@ class BillProcessor:
                                 email_subject=email_subject, email_body=email_body
                             )
                             bill_info = prediction.bill_info
-                            self.logger.info(f"✓ {name}: {bill_info}")
+                            self.logger.debug(f"✓ {name}: {bill_info}")
                             return bill_info
             except Exception as e:
                 self.logger.warning(f"✗ {name} failed: {e}")

@@ -88,8 +88,8 @@ def main():
 
         for email in unread_emails:
             try:
-                logger.info(f"Processing email {email['id']}: {email['subject']}")
-                logger.info(f"Sender: {email['sender']}")
+                logger.debug(f"Processing email {email['id']}: {email['subject']}")
+                logger.debug(f"Sender: {email['sender']}")
                 logger.debug(f"Body: {email['body']}")
                 bill_info = bill_processor.extract_bill_info(
                     email_body=email["body"], email_subject=email["subject"]
@@ -109,7 +109,7 @@ def main():
                         count_skipped += 1
                         continue
 
-                    logger.info(f"Extracted bill: {bill_info}")
+                    logger.debug(f"Extracted bill: {bill_info}")
                     result = notion_client.add_bill_to_notion(bill_info)
                     if result is None:
                         logger.error(
@@ -121,7 +121,7 @@ def main():
                         continue
                     gmail_client.mark_email_as_read(email["id"])
                     count_processed += 1
-                    logger.info(f"Processed email {email['id']} and added bill to Notion.")
+                    logger.debug(f"Processed email {email['id']} and added bill to Notion.")
                 else:
                     # No bill info extracted — mark as read to avoid reprocessing
                     logger.info(
