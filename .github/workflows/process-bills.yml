@@ -30,6 +30,8 @@ jobs:
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           NOTION_WORKFLOW_DATABASE_ID: ${{ secrets.NOTION_WORKFLOW_DATABASE_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'WARNING' }}
         run: |
           uv sync

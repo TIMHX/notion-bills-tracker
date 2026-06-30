@@ -99,33 +99,77 @@ class BillExtractor(dspy.Module):
 
 
 class GeminiProcessor:
-    def __init__(self, api_key, log_level_str: str = "WARNING"):
+    """Processor that extracts bill info from emails using DSPy + LLM.
+
+    Uses a provider fallback chain: DeepSeek → Gemini → MiniMax.
+    Each provider gets its own retry (exponential backoff via tenacity).
+    If one provider exhausts retries, automatically switches to the next.
+    Configure by setting: DEEPSEEK_API_KEY, GEMINI_API_KEY, MINIMAX_API_KEY.
+    """
+
+    def __init__(self, gemini_api_key=None, log_level_str: str = "WARNING"):
         self.logger = setup_logger(__name__, log_level_str)
         self.bill_category_mapping = self._load_bill_category_mapping()
-        try:
-            # Support multiple LLM providers via environment variables.
-            # Default: Gemini. Switch via LLM_MODEL / LLM_API_KEY / LLM_BASE_URL.
-            # Examples:
-            #   DeepSeek:  LLM_MODEL=openai/deepseek-chat
-            #              LLM_BASE_URL=https://api.deepseek.com
-            #              LLM_API_KEY=sk-...
-            #   MiniMax:   LLM_MODEL=openai/MiniMax-M2.7
-            #              LLM_BASE_URL=https://api.minimaxi.com/v1
-            #              LLM_API_KEY=...
-            model = os.getenv("LLM_MODEL", "gemini/gemini-2.5-flash")
-            llm_api_key = api_key or os.getenv("LLM_API_KEY")
-            base_url = os.getenv("LLM_BASE_URL")
+        self.extractors = self._build_extractor_chain(gemini_api_key)
+        if not self.extractors:
+            raise ValueError(
+                "No LLM API keys configured. "
+                "Set at least one of: DEEPSEEK_API_KEY, GEMINI_API_KEY, MINIMAX_API_KEY."
+            )
+        names = [name for name, _ in self.extractors]
+        self.logger.info(f"LLM provider chain: {' → '.join(names)}")
 
-            lm_kwargs = {"max_tokens": 2048}
-            if base_url:
-                lm_kwargs["api_base"] = base_url
+    def _build_extractor_chain(self, gemini_api_key):
+        """Build ordered list of (name, BillExtractor) from available API keys."""
+        extractors = []
 
-            self.lm = dspy.LM(model, api_key=llm_api_key, **lm_kwargs)
-            self.bill_extractor = BillExtractor(self.bill_category_mapping, self.lm)
-            self.logger.info(f"DSPy configured with model: {model}")
-        except Exception as e:
-            self.logger.error(f"Failed to configure DSPy: {e}")
-            raise
+        # 1. DeepSeek (primary — cheapest, good quality)
+        ds_key = os.getenv("DEEPSEEK_API_KEY")
+        if ds_key:
+            try:
+                lm = dspy.LM(
+                    "openai/deepseek-chat",
+                    api_key=ds_key,
+                    api_base="https://api.deepseek.com",
+                    max_tokens=2048,
+                )
+                extractors.append(
+                    ("DeepSeek", BillExtractor(self.bill_category_mapping, lm))
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to init DeepSeek: {e}")
+
+        # 2. Gemini (fallback — reliable, free tier)
+        if gemini_api_key:
+            try:
+                lm = dspy.LM(
+                    "gemini/gemini-2.5-flash",
+                    api_key=gemini_api_key,
+                    max_tokens=2048,
+                )
+                extractors.append(
+                    ("Gemini", BillExtractor(self.bill_category_mapping, lm))
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to init Gemini: {e}")
+
+        # 3. MiniMax (last resort)
+        mm_key = os.getenv("MINIMAX_API_KEY")
+        if mm_key:
+            try:
+                lm = dspy.LM(
+                    "openai/MiniMax-M2.7",
+                    api_key=mm_key,
+                    api_base="https://api.minimaxi.com/v1",
+                    max_tokens=2048,
+                )
+                extractors.append(
+                    ("MiniMax", BillExtractor(self.bill_category_mapping, lm))
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to init MiniMax: {e}")
+
+        return extractors
 
     def _load_bill_category_mapping(
         self, config_filename: str = "bill_categories.yaml"
@@ -152,39 +196,46 @@ class GeminiProcessor:
         self, email_body: str, email_subject: str = ""
     ) -> Optional[BillInfo]:
         """
-        Extracts bill information from an email body using a DSPy module.
+        Extracts bill information from an email body using DSPy.
+
+        Tries each provider in order (DeepSeek → Gemini → MiniMax).
+        Each provider gets up to 2 retries with exponential backoff
+        (tenacity). On total failure, switches to the next provider.
 
         Args:
             email_body: The text content of the email.
             email_subject: The subject of the email.
 
         Returns:
-            A Pydantic BillInfo object or None if extraction fails.
+            A Pydantic BillInfo object or None if all providers fail.
         """
-        try:
-            self.logger.debug(
-                f"Extracting bill info from email subject: '{email_subject}' and body:\n{email_body}"
-            )
+        last_error = None
 
-            # Retry with exponential backoff for transient failures
-            # (rate limits, server errors, timeouts)
-            for attempt in Retrying(
-                stop=stop_after_attempt(3),
-                wait=wait_exponential(multiplier=1, min=2, max=30),
-                retry=retry_if_exception_type(Exception),
-                reraise=True,
-            ):
-                with attempt:
-                    prediction = self.bill_extractor(
-                        email_subject=email_subject, email_body=email_body
-                    )
-                    bill_info = prediction.bill_info
-                    self.logger.info(f"Successfully extracted bill info: {bill_info}")
-                    return bill_info
-        except Exception as e:
-            self.logger.error(f"Error extracting bill info after retries: {e}")
-            self.logger.debug(e, exc_info=True)
-            return None
+        for name, extractor in self.extractors:
+            try:
+                self.logger.debug(f"Trying {name}...")
+                for attempt in Retrying(
+                    stop=stop_after_attempt(2),
+                    wait=wait_exponential(multiplier=1, min=2, max=10),
+                    retry=retry_if_exception_type(Exception),
+                    reraise=True,
+                ):
+                    with attempt:
+                        prediction = extractor(
+                            email_subject=email_subject, email_body=email_body
+                        )
+                        bill_info = prediction.bill_info
+                        self.logger.info(f"✓ {name}: {bill_info}")
+                        return bill_info
+            except Exception as e:
+                self.logger.warning(f"✗ {name} failed: {e}")
+                last_error = e
+                continue
+
+        self.logger.error(
+            f"All {len(self.extractors)} providers failed. Last error: {last_error}"
+        )
+        return None
 
 
 if __name__ == "__main__":

@@ -25,26 +25,29 @@ def main():
 
     gmail_client = GmailClient(log_level_str=log_level_str)
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
+    deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY")
+    minimax_api_key = os.environ.get("MINIMAX_API_KEY")
     notion_api_key = os.environ.get("NOTION_API_KEY")
     notion_database_id = os.environ.get("NOTION_DATABASE_ID")
     notion_workflow_database_id = os.environ.get("NOTION_WORKFLOW_DATABASE_ID")
 
-    if not all(
-        [
-            gemini_api_key,
-            notion_api_key,
-            notion_database_id,
-            notion_workflow_database_id,
-        ]
-    ):
+    # Notion keys are mandatory; at least one LLM provider key is required
+    if not all([notion_api_key, notion_database_id, notion_workflow_database_id]):
         logger.error(
-            "One or more environment variables (GEMINI_API_KEY, NOTION_API_KEY, NOTION_DATABASE_ID, NOTION_WORKFLOW_DATABASE_ID) are not set."
+            "Missing Notion env vars (NOTION_API_KEY, NOTION_DATABASE_ID, "
+            "NOTION_WORKFLOW_DATABASE_ID)."
         )
-        # Exit or raise an exception as appropriate for your application
-        # For now, we'll set workflow_status to Failure and log it.
         workflow_status = "Failed"
-        workflow_notes = "Missing environment variables."
-        # We can't proceed without these, so we'll return here.
+        workflow_notes = "Missing Notion environment variables."
+        return
+
+    if not any([deepseek_api_key, gemini_api_key, minimax_api_key]):
+        logger.error(
+            "No LLM API key configured. Set at least one of: "
+            "DEEPSEEK_API_KEY, GEMINI_API_KEY, MINIMAX_API_KEY."
+        )
+        workflow_status = "Failed"
+        workflow_notes = "Missing LLM API key."
         return
 
     gemini_processor = GeminiProcessor(gemini_api_key, log_level_str=log_level_str)
