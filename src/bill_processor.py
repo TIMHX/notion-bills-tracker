@@ -131,10 +131,11 @@ class BillProcessor:
         ds_key = os.getenv("DEEPSEEK_API_KEY")
         if ds_key:
             try:
+                # Use litellm native deepseek provider (not openai/ fallback)
+                # to avoid DSPy structured-output serialization bug
                 lm = dspy.LM(
-                    "openai/deepseek-chat",
+                    "deepseek/deepseek-chat",
                     api_key=ds_key,
-                    api_base="https://api.deepseek.com",
                     max_tokens=2048,
                 )
                 extractors.append(
