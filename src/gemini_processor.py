@@ -26,6 +26,13 @@ class BillInfo(BaseModel):
         default=None,
         description="The date of the transaction in 'YYYY-MM-DD' format.",
     )
+    expense_type: Optional[str] = Field(
+        default=None,
+        description="Whether this is an expense ('支出') or income ('收入'). "
+        "支出 = money going out (bill payment, purchase, transfer sent). "
+        "收入 = money coming in (salary, refund, deposit, transfer received). "
+        "Default to '支出' when uncertain.",
+    )
 
 
 # Define the signature for bill information extraction using the Pydantic model.

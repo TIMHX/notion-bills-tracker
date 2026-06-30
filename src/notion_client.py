@@ -35,6 +35,9 @@ class NotionClient:
             "覆写日期": {
                 "date": {"start": bill_info.date or datetime.date.today().isoformat()}
             },  # Default date if not found
+            "支出 vs. 收入": {
+                "select": {"name": bill_info.expense_type or "支出"}
+            },
         }
 
         data = {"parent": {"database_id": self.database_id}, "properties": properties}
