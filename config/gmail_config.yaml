@@ -1,2 +1,5 @@
 query: "is:unread label:账单 -in:inbox"
 sender_filter: ["Chase", "everyday", "citi"]
+# 排除特定 merchant（避免 double counting）
+# CITI AUTOPAY: Chase 账单里会出现，同时 Citi 也会独立发账单
+exclude_merchants: ["CITI AUTOPAY"]

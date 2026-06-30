@@ -21,6 +21,7 @@ def main():
         gmail_config = yaml.safe_load(f)
 
     sender_filter = gmail_config.get("sender_filter", [])
+    exclude_merchants = gmail_config.get("exclude_merchants", [])
 
     gmail_client = GmailClient(log_level_str=log_level_str)
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
@@ -83,6 +84,19 @@ def main():
                 email_body=email["body"], email_subject=email["subject"]
             )
             if bill_info:
+                # 检查是否应该排除该 merchant（避免 double counting）
+                merchant_lower = (bill_info.merchant or "").lower()
+                excluded = any(
+                    ex.lower() in merchant_lower for ex in exclude_merchants
+                )
+                if excluded:
+                    logger.info(
+                        f"Skipping excluded merchant '{bill_info.merchant}' "
+                        f"in email {email['id']}. Marking as read anyway."
+                    )
+                    gmail_client.mark_email_as_read(email["id"])
+                    continue
+
                 logger.info(f"Extracted bill: {bill_info}")
                 notion_client.add_bill_to_notion(bill_info)
                 gmail_client.mark_email_as_read(email["id"])
