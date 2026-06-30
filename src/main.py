@@ -87,7 +87,7 @@ def main():
                 bill_info = gemini_processor.extract_bill_info(
                     email_body=email["body"], email_subject=email["subject"]
                 )
-                if bill_info:
+                if bill_info.merchant:
                     # 检查是否应该排除该 merchant（避免 double counting）
                     merchant_lower = (bill_info.merchant or "").lower()
                     excluded = any(

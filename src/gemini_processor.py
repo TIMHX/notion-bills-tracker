@@ -195,7 +195,7 @@ class GeminiProcessor:
 
     def extract_bill_info(
         self, email_body: str, email_subject: str = ""
-    ) -> Optional[BillInfo]:
+    ) -> BillInfo:
         """
         Extracts bill information from an email body using DSPy.
 
@@ -208,7 +208,8 @@ class GeminiProcessor:
             email_subject: The subject of the email.
 
         Returns:
-            A Pydantic BillInfo object or None if all providers fail.
+            A Pydantic BillInfo object (may have None fields if no bill data
+            found in the email). Raises RuntimeError if all providers fail.
         """
         last_error = None
 
@@ -239,7 +240,10 @@ class GeminiProcessor:
         self.logger.error(
             f"All {len(self.extractors)} providers failed. Last error: {last_error}"
         )
-        return None
+        raise RuntimeError(
+            f"All {len(self.extractors)} providers exhausted. "
+            f"Last error: {last_error}"
+        )
 
 
 if __name__ == "__main__":
