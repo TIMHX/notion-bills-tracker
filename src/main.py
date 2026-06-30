@@ -79,7 +79,7 @@ def main():
         for email in unread_emails:
             logger.info(f"Processing email {email['id']}: {email['subject']}")
             logger.info(f"Sender: {email['sender']}")
-            logger.info(f"Body: {email['body']}")
+            logger.debug(f"Body: {email['body']}")
             bill_info = gemini_processor.extract_bill_info(
                 email_body=email["body"], email_subject=email["subject"]
             )
@@ -98,7 +98,13 @@ def main():
                     continue
 
                 logger.info(f"Extracted bill: {bill_info}")
-                notion_client.add_bill_to_notion(bill_info)
+                result = notion_client.add_bill_to_notion(bill_info)
+                if result is None:
+                    logger.error(
+                        f"Failed to add bill to Notion for email {email['id']}. "
+                        "Email will NOT be marked as read so it can be retried."
+                    )
+                    continue
                 gmail_client.mark_email_as_read(email["id"])
                 logger.info(f"Processed email {email['id']} and added bill to Notion.")
             else:
