@@ -104,10 +104,10 @@ class BillExtractor(dspy.Module):
 class BillProcessor:
     """Processor that extracts bill info from emails using DSPy + LLM.
 
-    Uses a provider fallback chain: DeepSeek → Gemini → MiniMax.
+    Uses a provider fallback chain: MiniMax → Gemini → DeepSeek.
     Each provider gets its own retry (exponential backoff via tenacity).
     If one provider exhausts retries, automatically switches to the next.
-    Configure by setting: DEEPSEEK_API_KEY, GEMINI_API_KEY, MINIMAX_API_KEY.
+    Configure by setting: MINIMAX_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY.
     """
 
     def __init__(self, gemini_key=None, log_level_str: str = "WARNING"):
@@ -126,22 +126,21 @@ class BillProcessor:
         """Build ordered list of (name, lm, BillExtractor) from available API keys. LM is stored alongside the extractor (not on it) to avoid DSPy 3.x serialization bug."""
         extractors = []
 
-        # 1. DeepSeek (primary — cheapest, good quality)
-        ds_key = os.getenv("DEEPSEEK_API_KEY")
-        if ds_key:
+        # 1. MiniMax (primary — Token Plan 年卡额度, M3)
+        mm_key = os.getenv("MINIMAX_API_KEY")
+        if mm_key:
             try:
-                # Use litellm native deepseek provider (not openai/ fallback)
-                # to avoid DSPy structured-output serialization bug
                 lm = dspy.LM(
-                    "deepseek/deepseek-chat",
-                    api_key=ds_key,
+                    "openai/MiniMax-M3",
+                    api_key=mm_key,
+                    api_base="https://api.minimaxi.com/v1",
                     max_tokens=2048,
                 )
                 extractors.append(
-                    ("DeepSeek", lm, BillExtractor(self.bill_category_mapping, lm))
+                    ("MiniMax", lm, BillExtractor(self.bill_category_mapping, lm))
                 )
             except Exception as e:
-                self.logger.warning(f"Failed to init DeepSeek: {e}")
+                self.logger.warning(f"Failed to init MiniMax: {e}")
 
         # 2. Gemini (fallback — reliable, free tier)
         if gemini_key:
@@ -157,21 +156,22 @@ class BillProcessor:
             except Exception as e:
                 self.logger.warning(f"Failed to init Gemini: {e}")
 
-        # 3. MiniMax (last resort)
-        mm_key = os.getenv("MINIMAX_API_KEY")
-        if mm_key:
+        # 3. DeepSeek (last resort — 按量计费; deepseek-chat 别名已退休, 用 v4-flash)
+        ds_key = os.getenv("DEEPSEEK_API_KEY")
+        if ds_key:
             try:
+                # Use litellm native deepseek provider (not openai/ fallback)
+                # to avoid DSPy structured-output serialization bug
                 lm = dspy.LM(
-                    "openai/MiniMax-M2.7",
-                    api_key=mm_key,
-                    api_base="https://api.minimaxi.com/v1",
+                    "deepseek/deepseek-v4-flash",
+                    api_key=ds_key,
                     max_tokens=2048,
                 )
                 extractors.append(
-                    ("MiniMax", lm, BillExtractor(self.bill_category_mapping, lm))
+                    ("DeepSeek", lm, BillExtractor(self.bill_category_mapping, lm))
                 )
             except Exception as e:
-                self.logger.warning(f"Failed to init MiniMax: {e}")
+                self.logger.warning(f"Failed to init DeepSeek: {e}")
 
         return extractors
 
