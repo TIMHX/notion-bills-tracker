@@ -6,6 +6,7 @@ from bill_processor import BillProcessor
 from notion_client import NotionClient
 from dotenv import load_dotenv
 from logger_utils import setup_logger
+from bill_filters import SkipRules, bill_skip_reason, normalize_sign
 
 
 def main():
@@ -21,7 +22,7 @@ def main():
         gmail_config = yaml.safe_load(f)
 
     sender_filter = gmail_config.get("sender_filter", [])
-    exclude_merchants = gmail_config.get("exclude_merchants", [])
+    skip_rules = SkipRules.from_config(gmail_config)
 
     gmail_client = GmailClient(log_level_str=log_level_str)
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
@@ -91,19 +92,24 @@ def main():
                 logger.debug(f"Processing email {email['id']}: {email['subject']}")
                 logger.debug(f"Sender: {email['sender']}")
                 logger.debug(f"Body: {email['body']}")
+                # Card payments / statements: skip before spending an LLM call
+                reason = skip_rules.subject_skip_reason(email["subject"])
+                if reason:
+                    logger.info(f"Skipping email {email['id']}: {reason}.")
+                    gmail_client.mark_email_as_read(email["id"])
+                    count_skipped += 1
+                    continue
+
                 bill_info = bill_processor.extract_bill_info(
                     email_body=email["body"], email_subject=email["subject"]
                 )
                 if bill_info.merchant:
-                    # 检查是否应该排除该 merchant（避免 double counting）
-                    merchant_lower = (bill_info.merchant or "").lower()
-                    excluded = any(
-                        ex.lower() in merchant_lower for ex in exclude_merchants
-                    )
-                    if excluded:
+                    normalize_sign(bill_info)
+                    reason = bill_skip_reason(bill_info, skip_rules)
+                    if reason:
                         logger.info(
-                            f"Skipping excluded merchant '{bill_info.merchant}' "
-                            f"in email {email['id']}. Marking as read anyway."
+                            f"Skipping email {email['id']}: {reason}. "
+                            "Marking as read anyway."
                         )
                         gmail_client.mark_email_as_read(email["id"])
                         count_skipped += 1

@@ -1,5 +1,42 @@
 query: "is:unread label:账单 -in:inbox"
 sender_filter: ["Chase", "citi"]
-# 排除特定 merchant（避免 double counting）
-# CITI AUTOPAY: Chase 账单里会出现，同时 Citi 也会独立发账单
-exclude_merchants: ["CITI AUTOPAY"]
+
+# ---- Double-counting prevention -------------------------------------------
+# Card payments and internal transfers are NOT spending: every purchase is
+# already recorded from its own transaction alert, so recording the payment
+# counts it twice. Matching is case-insensitive substring.
+
+# Checked on the email SUBJECT before the LLM runs (no API cost).
+# Do NOT add generic words like "payment" alone — "You sent a payment to <rent>"
+# and Zelle notices must still go through.
+skip_subject_keywords:
+  - "credit card payment"
+  - "card payment"
+  - "payment is scheduled"
+  - "payment scheduled"
+  - "payment has posted"
+  - "payment posted"
+  - "payment received"
+  - "received your payment"
+  - "payment was received"
+  - "thank you for your payment"
+  - "autopay"
+  - "statement is ready"
+  - "statement is available"
+  - "minimum payment"
+
+# Checked on the MERCHANT extracted by the LLM.
+# Do NOT add bare "Chase" — payroll arrives as merchant "Chase"/"JPMorgan Chase".
+exclude_merchants:
+  - "CITI AUTOPAY"
+  - "CITIBANK"
+  - "CITI CARD"
+  - "CITICARD"
+  - "CHASE CREDIT CRD"
+  - "CHASE CREDIT CARD"
+  - "CHASE CARD"
+  - "CARDMEMBER SERV"
+  - "AUTOMATIC PAYMENT"
+  - "PAYMENT THANK YOU"
+  - "AUTOPAY"
+  - "TRANSFER TO SAV"

@@ -14,7 +14,9 @@ class BillInfo(BaseModel):
     """A structured representation of bill information."""
 
     merchant: Optional[str] = Field(
-        default=None, description="The merchant's name (e.g., 'BARCLAY VILLAGE')."
+        default=None,
+        description="The counterparty's name (e.g., 'BARCLAY VILLAGE', 'COSTCO WHSE'). "
+        "Use the merchant / payee / payer — not the bank that sent the alert.",
     )
     amount: Optional[float] = Field(
         default=None, description="The bill amount as a numeric value."
@@ -33,6 +35,15 @@ class BillInfo(BaseModel):
         "支出 = money going out (bill payment, purchase, transfer sent). "
         "收入 = money coming in (salary, refund, deposit, transfer received). "
         "Default to '支出' when uncertain.",
+    )
+    is_card_payment_or_transfer: Optional[bool] = Field(
+        default=None,
+        description="True if this email is about PAYING A CREDIT CARD BILL or moving money "
+        "between the user's own accounts, not a purchase: e.g. Chase/Citi credit card "
+        "payment or AutoPay (scheduled, received, posted), 'CITI AUTOPAY', "
+        "'Chase Credit Crd Autopay', 'Citibank, N.A. Payment', statement-ready notices, "
+        "transfer to savings / own account. False for purchases, rent, utilities, "
+        "Zelle to/from other people, salary, refunds.",
     )
 
 
@@ -202,7 +213,7 @@ class BillProcessor:
         """
         Extracts bill information from an email body using DSPy.
 
-        Tries each provider in order (DeepSeek → Gemini → MiniMax).
+        Tries each provider in order (MiniMax → Gemini → DeepSeek).
         Each provider gets up to 2 retries with exponential backoff
         (tenacity). On total failure, switches to the next provider.
 

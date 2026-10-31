@@ -70,19 +70,7 @@ class GmailClient:
                 "Unknown Sender",
             )
 
-            # Extract body (handling multipart messages)
-            body = ""
-            if "parts" in payload:
-                for part in payload["parts"]:
-                    if part["mimeType"] == "text/html":
-                        body = self._decode_email_body(part["body"]["data"])
-                        break
-                    if part["mimeType"] == "text/plain":
-                        body = self._decode_email_body(part["body"]["data"])
-                        break
-            else:
-                body = self._decode_email_body(payload["body"]["data"])
-
+            body = self._extract_body(payload)
             body = self._clean_email_body(body)
 
             all_unread_emails_data.append(
@@ -110,10 +98,27 @@ class GmailClient:
             userId="me", id=message_id, body={"removeLabelIds": ["UNREAD"]}
         ).execute()
 
+    def _extract_body(self, payload) -> str:
+        """Walk the MIME tree (multipart can be nested) and return the first
+        text/html part, falling back to text/plain."""
+        found = {}
+
+        def walk(part):
+            mime = part.get("mimeType", "")
+            data = part.get("body", {}).get("data")
+            if data and mime in ("text/html", "text/plain") and mime not in found:
+                found[mime] = data
+            for sub in part.get("parts", []) or []:
+                walk(sub)
+
+        walk(payload)
+        data = found.get("text/html") or found.get("text/plain")
+        return self._decode_email_body(data) if data else ""
+
     def _decode_email_body(self, data):
         import base64
 
-        return base64.urlsafe_b64decode(data).decode("utf-8")
+        return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
 
     def _clean_email_body(self, body: str) -> str:
         """Cleans the email body by removing signatures, quoted text, and excessive whitespace."""

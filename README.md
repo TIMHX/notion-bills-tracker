@@ -8,8 +8,8 @@ Automates bill tracking by extracting transaction info from Gmail and writing it
 ## Features
 
 - **Gmail Integration**: Fetches unread emails based on `query` and `sender_filter` in `config/gmail_config.yaml`. `sender_filter` supports partial, case-insensitive matching (e.g., `"Chase"` matches `"JPMorgan Chase"`).
-- **Double-Counting Prevention**: `exclude_merchants` skips specific merchants (e.g., `"CITI AUTOPAY"` appearing in Chase emails is ignored since Citi sends its own bill separately).
-- **Multi-Provider LLM Fallback**: DSPy-powered extraction tries DeepSeek → Gemini → MiniMax in order. Each provider gets independent retries (exponential backoff); failure cascades to the next. Set at least one of `DEEPSEEK_API_KEY` / `GEMINI_API_KEY` / `MINIMAX_API_KEY`.
+- **Double-Counting Prevention**: credit-card payments and internal transfers are never recorded (each purchase is already recorded from its own alert). Three layers: `skip_subject_keywords` drops payment / AutoPay / statement emails before the LLM runs; the LLM sets `is_card_payment_or_transfer`; `exclude_merchants` drops merchants such as `CITI AUTOPAY`, `CITIBANK`, `CHASE CREDIT CRD`. Zero-amount rows are skipped and negative amounts are stored as positive `收入`.
+- **Multi-Provider LLM Fallback**: DSPy-powered extraction tries MiniMax → Gemini → DeepSeek in order. Each provider gets independent retries (exponential backoff); failure cascades to the next. Set at least one of `DEEPSEEK_API_KEY` / `GEMINI_API_KEY` / `MINIMAX_API_KEY`.
 - **Structured Extraction**: Pydantic model + DSPy Signature extracts:
   - `merchant` — merchant name
   - `amount` — transaction amount
@@ -47,6 +47,7 @@ notion-bills-tracker/
 │   ├── main.py                  # Main pipeline
 │   ├── gmail_client.py          # Gmail API wrapper
 │   ├── bill_processor.py        # DSPy + multi-provider extraction
+│   ├── bill_filters.py          # Card-payment / transfer skip rules
 │   ├── notion_client.py         # Notion API wrapper
 │   └── logger_utils.py          # Structured logging
 ├── .gitignore
@@ -78,10 +79,10 @@ uv sync
 ```yaml
 query: "is:unread label:账单 -in:inbox"
 sender_filter: ["Chase", "citi"]
-# Skip specific merchants to prevent double counting.
-# Example: CITI AUTOPAY appears in both Chase and Citi bills —
-# excluding it here means only the Citi-originated bill is recorded.
-exclude_merchants: ["CITI AUTOPAY"]
+# Card payments / statements: skipped by subject before the LLM runs
+skip_subject_keywords: ["credit card payment", "autopay", "payment received", ...]
+# Skipped by extracted merchant (do NOT add bare "Chase" — payroll uses it)
+exclude_merchants: ["CITI AUTOPAY", "CITIBANK", "CHASE CREDIT CRD", "AUTOMATIC PAYMENT", ...]
 ```
 
 #### `config/bill_categories.yaml`
@@ -93,7 +94,6 @@ PUBLIC SERVICE: 水电网费
 OPTIMUM: 水电网费
 EVERYDAY: 餐饮
 PPK CAFÉ: 餐饮
-CITI AUTOPAY: 娱乐/购物
 COSTCO: 娱乐/购物
 ```
 
@@ -110,9 +110,9 @@ COSTCO: 娱乐/购物
 
 | Provider | Get Key From | Env Variable |
 |---|---|---|
-| DeepSeek (fast, cheap) | [platform.deepseek.com](https://platform.deepseek.com/) | `DEEPSEEK_API_KEY` |
+| MiniMax (primary) | [minimaxi.com](https://www.minimaxi.com/) | `MINIMAX_API_KEY` |
+| DeepSeek (last resort) | [platform.deepseek.com](https://platform.deepseek.com/) | `DEEPSEEK_API_KEY` |
 | Gemini (reliable, free tier) | [Google AI Studio](https://aistudio.google.com/app/apikey) | `GEMINI_API_KEY` |
-| MiniMax (fallback) | [minimaxi.com](https://www.minimaxi.com/) | `MINIMAX_API_KEY` |
 
 ### 6. Notion Integration
 
